@@ -1,0 +1,21 @@
+/*
+
+# whitelist
+!/GMT/
+!/.github/
+!/GMT.lean
+!/lakefile.toml
+!/lean-toolchain
+!/README.md
+!/LICENSE
+!/NOTICE
+!/.gitignore
+!/AGENTS.md
+!/NAMING.md
+!/STRUCTURE.md
+# end of whitelist
+
+.lake/
+
+.DS_Store
+**/.DS_Store
