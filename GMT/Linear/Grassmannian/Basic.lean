@@ -1,4 +1,5 @@
 import GMT.Linear.Grassmannian.Defs
+import GMT.Linear.Trace
 import Mathlib.Analysis.InnerProductSpace.Projection.FiniteDimensional
 import Mathlib.Topology.MetricSpace.ProperSpace
 
@@ -11,12 +12,6 @@ namespace Grassmannian
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] {n : ℕ}
 
-private def traceCLM : (E →L[ℝ] E) →L[ℝ] ℝ :=
-  ({ toFun := fun p : E →L[ℝ] E => LinearMap.trace ℝ E p.toLinearMap
-     map_add' := fun p q => (LinearMap.trace ℝ E).map_add p.toLinearMap q.toLinearMap
-     map_smul' := fun c p => (LinearMap.trace ℝ E).map_smul c p.toLinearMap } :
-    (E →L[ℝ] E) →ₗ[ℝ] ℝ).toContinuousLinearMap
-
 private theorem isClosed_set : IsClosed {p : E →L[ℝ] E |
     IsStarProjection p ∧ LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)} := by
   rw [show {p : E →L[ℝ] E | IsStarProjection p ∧
@@ -28,7 +23,7 @@ private theorem isClosed_set : IsClosed {p : E →L[ℝ] E |
         IsIdempotentElem, IsSelfAdjoint]]
   exact ((isClosed_eq (continuous_id.mul continuous_id) continuous_id).inter
       (isClosed_eq continuous_star continuous_id)).inter
-    (isClosed_eq traceCLM.continuous continuous_const)
+    (isClosed_eq (ContinuousLinearMap.trace ℝ E).continuous continuous_const)
 
 theorem norm_projection_le (S : Grassmannian E n) : ‖S.projection‖ ≤ 1 := by
   obtain ⟨_, h⟩ := isStarProjection_iff_eq_starProjection_range.mp S.property.1
@@ -63,6 +58,40 @@ theorem projection_eq_starProjection (S : Grassmannian E n) :
     S.projection = S.subspace.starProjection := by
   obtain ⟨_, h⟩ := isStarProjection_iff_eq_starProjection_range.mp S.property.1
   exact h
+
+def tangentialTrace (S : Grassmannian E n) : (E →L[ℝ] E) →L[ℝ] ℝ :=
+  (ContinuousLinearMap.trace ℝ E).comp
+    (ContinuousLinearMap.compL ℝ E E E S.projection)
+
+@[simp]
+theorem tangentialTrace_apply (S : Grassmannian E n) (A : E →L[ℝ] E) :
+    S.tangentialTrace A = LinearMap.trace ℝ E (S.projection.comp A).toLinearMap :=
+  rfl
+
+@[fun_prop]
+theorem continuous_tangentialTrace_apply :
+    Continuous fun z : Grassmannian E n × (E →L[ℝ] E) => z.1.tangentialTrace z.2 := by
+  have h : Continuous fun z : Grassmannian E n × (E →L[ℝ] E) =>
+      (z.1.projection, z.2) := by
+    fun_prop
+  exact (ContinuousLinearMap.trace ℝ E).continuous.comp
+    ((ContinuousLinearMap.compL ℝ E E E).continuous₂.comp h)
+
+theorem norm_tangentialTrace_le (S : Grassmannian E n) (A : E →L[ℝ] E) :
+    ‖S.tangentialTrace A‖ ≤ ‖ContinuousLinearMap.trace ℝ E‖ * ‖A‖ := by
+  calc
+    ‖S.tangentialTrace A‖ ≤
+        ‖ContinuousLinearMap.trace ℝ E‖ * ‖S.projection.comp A‖ :=
+      by
+        change ‖ContinuousLinearMap.trace ℝ E (S.projection.comp A)‖ ≤ _
+        exact ContinuousLinearMap.le_opNorm _ _
+    _ ≤ ‖ContinuousLinearMap.trace ℝ E‖ * (‖S.projection‖ * ‖A‖) :=
+      mul_le_mul_of_nonneg_left (ContinuousLinearMap.opNorm_comp_le _ _)
+        (norm_nonneg _)
+    _ ≤ ‖ContinuousLinearMap.trace ℝ E‖ * (1 * ‖A‖) := by
+      gcongr
+      exact S.norm_projection_le
+    _ = ‖ContinuousLinearMap.trace ℝ E‖ * ‖A‖ := by ring
 
 @[simp]
 theorem perpendicularProjection_eq (S : Grassmannian E n) :
