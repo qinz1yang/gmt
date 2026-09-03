@@ -12,7 +12,7 @@ namespace Grassmannian
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] {n : ℕ}
 
--- Simon, Chapter 8, formulas (2.3)-(2.4), pp. 208-209: div_S X.
+-- Simon, Chapter 8, formula (2.4), p. 209: div_S X.
 def tangentialDivergence (S : Grassmannian E n) (X : E → E) (x : E) : ℝ :=
   S.tangentialTrace (fderiv ℝ X x)
 
@@ -36,7 +36,7 @@ theorem tangentialDivergence_radialVectorField_eq_perpendicularProjection
           ‖S.perpendicularProjection (x - center)‖ ^ 2 :=
   S.tangentialTrace_fderiv_radialVectorField_eq_perpendicularProjection hprofile hx
 
--- Simon, Chapter 4, formulas (3.2)-(3.3), pp. 89-90: squared-radius form.
+-- Simon, Chapter 4, formulas (3.2)-(3.3), pp. 89-90: squared-radius reparameterization.
 theorem tangentialDivergence_squaredRadiusRadialVectorField
     (S : Grassmannian E n) {profile : ℝ → ℝ} {profile' : ℝ}
     {center x : E} (hprofile : HasDerivAt profile profile' (‖x - center‖ ^ 2)) :
@@ -158,6 +158,7 @@ private def firstVariationOnCompact (V : Varifold E n) (K : Compacts E) :
               (({1} : Finset ℕ).sup fun i =>
                 ContDiffMapSupportedIn.seminorm ℝ E E 1 K i) X := by simp⟩
 
+-- Simon, Chapter 8, formula (2.3), p. 209: first variation as the div_S integral.
 def firstVariation (V : Varifold E n) (U : Opens E) :
     TestFunction U E 1 →L[ℝ] ℝ :=
   TestFunction.limitCLM ℝ
@@ -220,7 +221,7 @@ theorem firstVariation_smul (c : ℝ≥0) (V : Varifold E n) (U : Opens E) :
   rw [firstVariation_apply, toMeasure_smul, integral_smul_nnreal_measure]
   rfl
 
--- Simon, Chapter 8, formula (2.4), p. 209: stationarity means vanishing first variation.
+-- Simon, Chapter 8, unnumbered definition following formula (2.4), p. 209: stationarity.
 def IsStationaryOn (V : Varifold E n) (U : Opens E) : Prop :=
   V.firstVariation U = 0
 
@@ -245,7 +246,7 @@ theorem IsStationaryOn.firstVariation_eq_zero {V : Varifold E n} {U : Opens E}
   rw [hV]
   rfl
 
--- Simon, Chapter 8, formula (2.4), p. 209: the stationary integral identity.
+-- Simon, Chapter 8, stationarity and formula (2.3), p. 209: the stationary integral identity.
 theorem IsStationaryOn.integral_tangentialDivergence_eq_zero
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     (X : TestFunction U E 1) :
@@ -253,7 +254,7 @@ theorem IsStationaryOn.integral_tangentialDivergence_eq_zero
       z.2.tangentialDivergence X z.1 ∂V.toMeasure = 0 := by
   simpa using hV.firstVariation_eq_zero X
 
--- Simon, Chapter 8, formulas (2.3)-(2.4), p. 209: the stationary identity over G_n(U).
+-- Simon, Chapter 8, stationarity and formula (2.3), p. 209: the identity over G_n(U).
 theorem IsStationaryOn.integral_tangentialDivergence_eq_zero_restrict
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     (X : TestFunction U E 1) :

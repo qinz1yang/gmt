@@ -15,7 +15,7 @@ namespace Grassmannian
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] {n : ℕ}
 
--- Simon, Chapter 4, formulas (3.6) and (3.10), pp. 90-91: the radial tilt kernel.
+-- Simon, Chapter 4, formulas (3.6), (3.10), pp. 90-91; Chapter 8, (3.3)-(3.4), pp. 210-211.
 def radialTilt (S : Grassmannian E n) (center x : E) : ℝ≥0∞ :=
   ENNReal.ofReal
     (‖S.perpendicularProjection (x - center)‖ ^ 2 / ‖x - center‖ ^ (n + 2))
@@ -53,7 +53,7 @@ open MeasureTheory
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] {n : ℕ}
 
--- Simon, Chapter 4, formula (3.3), p. 90: stationary radial test-field identity.
+-- Simon, Chapter 4, formula (3.3), p. 90: squared-radius reparameterization.
 theorem IsStationaryOn.integral_squaredRadiusRadial_eq_zero
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     {center : E} {profile : ℝ → ℝ} {R : ℝ} (hR : 0 ≤ R)
@@ -97,7 +97,7 @@ theorem IsStationaryOn.integral_squaredRadiusRadial_eq_zero
             exact (hprofile.differentiable (by norm_num) _).hasDerivAt
     _ = 0 := hstationary
 
--- Simon, Chapter 4, formula (3.3), p. 90: perpendicular-projection form of the identity.
+-- Simon, Chapter 4, formula (3.3), p. 90: squared-radius perpendicular form.
 theorem IsStationaryOn.integral_squaredRadiusRadial_perpendicular_eq_zero
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     {center : E} {profile : ℝ → ℝ} {R : ℝ} (hR : 0 ≤ R)

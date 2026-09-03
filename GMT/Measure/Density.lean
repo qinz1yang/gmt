@@ -10,7 +10,7 @@ noncomputable section
 
 namespace MeasureTheory
 
--- Simon, Chapter 4, formula (3.9), p. 91: the n-dimensional unit-ball constant omega_n.
+-- Simon, Chapter 1, Section 2, p. 9; used in Chapter 4, formula (3.9): omega_n.
 def euclideanUnitBallVolume (n : ℕ) : ℝ≥0∞ :=
   μHE[n] (closedBall (0 : EuclideanSpace ℝ (Fin n)) 1)
 
@@ -41,6 +41,7 @@ private theorem euclideanHausdorffMeasure_unit_closedBall
       rw [e.image_closedBall]
       simp only [map_zero]
 
+-- Simon, Chapter 1, Theorem 2.9, pp. 11-13: the normalized Euclidean ball formula.
 theorem euclideanHausdorffMeasure_closedBall
     {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
@@ -92,11 +93,11 @@ def massRatio (μ : Measure E) (n : ℕ) (x : E) (r : ℝ) : ℝ≥0∞ :=
 def densityRatio (μ : Measure E) (n : ℕ) (x : E) (r : ℝ) : ℝ≥0∞ :=
   massRatio μ n x r / euclideanUnitBallVolume n
 
--- Simon, Chapter 4, formula (3.9), p. 91: the lower radial density limit.
+-- Simon, Chapter 1, formula (3.1), p. 13, with A = X: the lower radial density.
 def lowerDensity (μ : Measure E) (n : ℕ) (x : E) : ℝ≥0∞ :=
   liminf (densityRatio μ n x) (𝓝[>] 0)
 
--- Simon, Chapter 4, formula (3.9), p. 91: the upper radial density limit.
+-- Simon, Chapter 1, formula (3.1), p. 13, with A = X: the upper radial density.
 def upperDensity (μ : Measure E) (n : ℕ) (x : E) : ℝ≥0∞ :=
   limsup (densityRatio μ n x) (𝓝[>] 0)
 

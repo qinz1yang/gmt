@@ -42,7 +42,7 @@ theorem trace_projection (S : Grassmannian E n) :
 
 def subspace (S : Grassmannian E n) : Submodule ℝ E := S.projection.range
 
--- Simon, Chapter 4, Section 3, p. 90: the operator whose normalized radial application is D^perp r.
+-- Simon, Chapter 4, Section 3, p. 90, and Chapter 8, formula (3.2), p. 210: p_S^perp.
 def perpendicularProjection (S : Grassmannian E n) : E →L[ℝ] E :=
   ContinuousLinearMap.id ℝ E - S.projection
 

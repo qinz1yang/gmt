@@ -80,6 +80,7 @@ theorem setLIntegral_radialTilt_ofPlane (S : Grassmannian E n)
   apply lintegral_eq_zero_of_ae_eq_zero
   exact ae_restrict_of_ae (radialTilt_ae_eq_zero_ofPlane S hcenter)
 
+-- Simon, Chapter 8, Section 1, p. 206: the weight of the multiplicity-one plane v(S).
 @[simp]
 theorem weightMeasure_ofPlane (S : Grassmannian E n) :
     (ofPlane S).weightMeasure = μHE[n].restrict S.subspace := by
