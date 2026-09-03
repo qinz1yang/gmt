@@ -15,6 +15,15 @@ def squaredRadiusRadialVectorField {E : Type*} [NormedAddCommGroup E]
 
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
 
+theorem contDiff_squaredRadiusRadialVectorField
+    {profile : ℝ → ℝ} {k : ℕ∞} (hprofile : ContDiff ℝ k profile)
+    (center : E) :
+    ContDiff ℝ k (squaredRadiusRadialVectorField center profile) := by
+  unfold squaredRadiusRadialVectorField
+  have hsub : ContDiff ℝ k (fun y : E => y - center) :=
+    contDiff_id.sub contDiff_const
+  exact (hprofile.comp (hsub.norm_sq ℝ)).smul hsub
+
 theorem hasFDerivAt_radialVectorField
     {profile : ℝ → ℝ} {profile' : ℝ} {center x : E}
     (hprofile : HasDerivAt profile profile' ‖x - center‖)

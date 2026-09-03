@@ -5,3 +5,4 @@ import GMT.Measure.Density
 import GMT.Measure.Marginal
 import GMT.Varifold.Basic
 import GMT.Varifold.FirstVariation
+import GMT.Varifold.Monotonicity
