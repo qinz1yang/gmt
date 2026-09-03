@@ -23,4 +23,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.ref }}
       - uses: leanprover/lean-action@v1
+        with:
+          use-github-cache: false
       - uses: leanprover-community/docgen-action@v1
