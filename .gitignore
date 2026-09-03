@@ -5,6 +5,7 @@
 !/.github/
 !/GMT.lean
 !/lakefile.toml
+!/lake-manifest.json
 !/lean-toolchain
 !/README.md
 !/LICENSE
