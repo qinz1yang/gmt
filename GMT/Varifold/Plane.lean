@@ -60,6 +60,25 @@ def ofPlane (S : Grassmannian E n) : Varifold E n where
 theorem toMeasure_ofPlane (S : Grassmannian E n) :
     (ofPlane S).toMeasure = μHE[n].map fun y : S.subspace => ((y : E), S) := rfl
 
+theorem radialTilt_ae_eq_zero_ofPlane (S : Grassmannian E n)
+    {center : E} (hcenter : center ∈ S.subspace) :
+    (fun z : E × Grassmannian E n => z.2.radialTilt center z.1) =ᵐ[(ofPlane S).toMeasure]
+      0 := by
+  rw [toMeasure_ofPlane]
+  have hp : MeasurableSet {z : E × Grassmannian E n |
+      z.2.radialTilt center z.1 = 0} :=
+    Grassmannian.measurable_radialTilt center (measurableSet_singleton 0)
+  apply (ae_map_iff (by fun_prop) hp).2
+  filter_upwards [] with y
+  exact S.radialTilt_eq_zero_of_mem hcenter y.property
+
+theorem setLIntegral_radialTilt_ofPlane (S : Grassmannian E n)
+    {center : E} (hcenter : center ∈ S.subspace)
+    (s : Set (E × Grassmannian E n)) :
+    ∫⁻ z in s, z.2.radialTilt center z.1 ∂(ofPlane S).toMeasure = 0 := by
+  apply lintegral_eq_zero_of_ae_eq_zero
+  exact ae_restrict_of_ae (radialTilt_ae_eq_zero_ofPlane S hcenter)
+
 @[simp]
 theorem weightMeasure_ofPlane (S : Grassmannian E n) :
     (ofPlane S).weightMeasure = μHE[n].restrict S.subspace := by
