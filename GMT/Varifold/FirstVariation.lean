@@ -1,3 +1,4 @@
+import GMT.Analysis.Radial
 import GMT.Varifold.Basic
 import Mathlib.Analysis.Distribution.TestFunction
 
@@ -13,6 +14,32 @@ variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
 
 def tangentialDivergence (S : Grassmannian E n) (X : E → E) (x : E) : ℝ :=
   S.tangentialTrace (fderiv ℝ X x)
+
+theorem tangentialDivergence_radialVectorField (S : Grassmannian E n)
+    {profile : ℝ → ℝ} {profile' : ℝ} {center x : E}
+    (hprofile : HasDerivAt profile profile' ‖x - center‖) (hx : x ≠ center) :
+    S.tangentialDivergence (radialVectorField center profile) x =
+      (n : ℝ) * profile ‖x - center‖ +
+        (‖x - center‖⁻¹ * profile') * ‖S.projection (x - center)‖ ^ 2 :=
+  S.tangentialTrace_fderiv_radialVectorField hprofile hx
+
+theorem tangentialDivergence_radialVectorField_eq_perpendicularProjection
+    (S : Grassmannian E n) {profile : ℝ → ℝ} {profile' : ℝ}
+    {center x : E} (hprofile : HasDerivAt profile profile' ‖x - center‖)
+    (hx : x ≠ center) :
+    S.tangentialDivergence (radialVectorField center profile) x =
+      (n : ℝ) * profile ‖x - center‖ + ‖x - center‖ * profile' -
+        (‖x - center‖⁻¹ * profile') *
+          ‖S.perpendicularProjection (x - center)‖ ^ 2 :=
+  S.tangentialTrace_fderiv_radialVectorField_eq_perpendicularProjection hprofile hx
+
+theorem tangentialDivergence_squaredRadiusRadialVectorField
+    (S : Grassmannian E n) {profile : ℝ → ℝ} {profile' : ℝ}
+    {center x : E} (hprofile : HasDerivAt profile profile' (‖x - center‖ ^ 2)) :
+    S.tangentialDivergence (squaredRadiusRadialVectorField center profile) x =
+      (n : ℝ) * profile (‖x - center‖ ^ 2) +
+        2 * profile' * ‖S.projection (x - center)‖ ^ 2 :=
+  S.tangentialTrace_fderiv_squaredRadiusRadialVectorField hprofile
 
 theorem continuous_tangentialDivergence {U : Opens E} (X : TestFunction U E 1) :
     Continuous fun z : E × Grassmannian E n => z.2.tangentialDivergence X z.1 := by

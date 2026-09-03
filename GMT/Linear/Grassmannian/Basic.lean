@@ -93,6 +93,17 @@ theorem norm_tangentialTrace_le (S : Grassmannian E n) (A : E →L[ℝ] E) :
       exact S.norm_projection_le
     _ = ‖ContinuousLinearMap.trace ℝ E‖ * ‖A‖ := by ring
 
+theorem tangentialTrace_id (S : Grassmannian E n) :
+    S.tangentialTrace (ContinuousLinearMap.id ℝ E) = (n : ℝ) := by
+  rw [tangentialTrace_apply, ContinuousLinearMap.comp_id]
+  exact S.trace_projection
+
+theorem tangentialTrace_rankOne (S : Grassmannian E n) (x y : E) :
+    S.tangentialTrace (InnerProductSpace.rankOne ℝ x y) =
+      inner ℝ y (S.projection x) := by
+  rw [tangentialTrace_apply, InnerProductSpace.comp_rankOne,
+    InnerProductSpace.trace_rankOne]
+
 @[simp]
 theorem perpendicularProjection_eq (S : Grassmannian E n) :
     S.perpendicularProjection = S.subspaceᗮ.starProjection := by
@@ -150,5 +161,11 @@ theorem inner_projection_self (S : Grassmannian E n) (x : E) :
     inner ℝ (S.projection x) x = ‖S.projection x‖ ^ 2 := by
   rw [S.projection_eq_starProjection]
   simpa using S.subspace.re_inner_starProjection_eq_normSq x
+
+theorem tangentialTrace_rankOne_self (S : Grassmannian E n) (x : E) :
+    S.tangentialTrace (InnerProductSpace.rankOne ℝ x x) =
+      ‖S.projection x‖ ^ 2 := by
+  rw [S.tangentialTrace_rankOne]
+  simpa [real_inner_comm] using S.inner_projection_self x
 
 end Grassmannian
