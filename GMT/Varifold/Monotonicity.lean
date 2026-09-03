@@ -1,6 +1,9 @@
+import GMT.Measure.Density
 import GMT.Varifold.FirstVariation
 import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
 import Mathlib.Analysis.SpecialFunctions.SmoothTransition
+import Mathlib.Topology.Order.LiminfLimsup
+import Mathlib.Topology.Order.Monotone
 
 open Filter Function Metric Set TopologicalSpace
 open scoped Distributions ENNReal Interval MeasureTheory Topology
@@ -1129,16 +1132,223 @@ theorem IsStationaryOn.monotonicity
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {σ ρ : ℝ} (hσ : 0 < σ) (hσρ : σ ≤ ρ)
     (hball : closedBall center ρ ⊆ U) :
-    (ENNReal.ofReal σ)⁻¹ ^ n * V.weightMeasure (closedBall center σ) +
+    V.weightMeasure.massRatio n center σ +
         ∫⁻ z : E × Grassmannian E n in
           (closedBall center ρ \ closedBall center σ) ×ˢ Set.univ,
           z.2.radialTilt center z.1 ∂V.toMeasure =
-      (ENNReal.ofReal ρ)⁻¹ ^ n * V.weightMeasure (closedBall center ρ) := by
+      V.weightMeasure.massRatio n center ρ := by
+  simp only [Measure.massRatio]
   obtain rfl | hσρ := hσρ.eq_or_lt
   · simp
   by_cases hn : n = 0
   · subst n
     exact monotonicity_zero_dim V hσ hσρ.le
   · exact hV.monotonicity_of_pos_of_lt (Nat.pos_of_ne_zero hn) hσ hσρ hball
+
+theorem IsStationaryOn.massRatio_monotoneOn
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hball : closedBall center R ⊆ U) :
+    MonotoneOn (V.weightMeasure.massRatio n center) (Ioc 0 R) := by
+  intro σ hσ ρ hρ hσρ
+  have hidentity := hV.monotonicity hσ.1 hσρ
+    ((closedBall_subset_closedBall hρ.2).trans hball)
+  rw [← hidentity]
+  exact le_add_right le_rfl
+
+theorem IsStationaryOn.densityRatio_monotoneOn
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hball : closedBall center R ⊆ U) :
+    MonotoneOn (V.weightMeasure.densityRatio n center) (Ioc 0 R) := by
+  intro σ hσ ρ hρ hσρ
+  exact ENNReal.div_le_div
+    (hV.massRatio_monotoneOn hball hσ hρ hσρ) le_rfl
+
+theorem IsStationaryOn.tendsto_densityRatio
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
+    Tendsto (V.weightMeasure.densityRatio n center) (𝓝[>] 0)
+      (𝓝 (V.weightMeasure.lowerDensity n center)) := by
+  let f := V.weightMeasure.densityRatio n center
+  have hmono : MonotoneOn f (Ioo 0 R) :=
+    (hV.densityRatio_monotoneOn hball).mono Ioo_subset_Ioc_self
+  have hnonempty : (Ioo (0 : ℝ) R).Nonempty := ⟨R / 2, by constructor <;> linarith⟩
+  have htend : Tendsto f (𝓝[>] 0) (𝓝 (sInf (f '' Ioo 0 R))) :=
+    hmono.tendsto_nhdsWithin_Ioo_right hnonempty (OrderBot.bddBelow _)
+  have hlower : V.weightMeasure.lowerDensity n center = sInf (f '' Ioo 0 R) :=
+    htend.liminf_eq
+  rw [hlower]
+  exact htend
+
+theorem IsStationaryOn.lowerDensity_ne_top
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
+    V.weightMeasure.lowerDensity n center ≠ ∞ := by
+  let f := V.weightMeasure.densityRatio n center
+  have hmono : MonotoneOn f (Ioo 0 R) :=
+    (hV.densityRatio_monotoneOn hball).mono Ioo_subset_Ioc_self
+  have hmid : R / 2 ∈ Ioo (0 : ℝ) R := by constructor <;> linarith
+  have htend : Tendsto f (𝓝[>] 0) (𝓝 (sInf (f '' Ioo 0 R))) :=
+    hmono.tendsto_nhdsWithin_Ioo_right ⟨R / 2, hmid⟩ (OrderBot.bddBelow _)
+  have hlower : V.weightMeasure.lowerDensity n center = sInf (f '' Ioo 0 R) :=
+    htend.liminf_eq
+  rw [hlower]
+  apply ne_top_of_le_ne_top _ (csInf_le (OrderBot.bddBelow _) (mem_image_of_mem f hmid))
+  dsimp only [f, Measure.densityRatio, Measure.massRatio]
+  apply ENNReal.div_ne_top
+  · apply ENNReal.mul_ne_top
+    · exact ENNReal.pow_ne_top
+        (ENNReal.inv_ne_top.mpr (ENNReal.ofReal_ne_zero_iff.mpr hmid.1))
+    · exact (isCompact_closedBall center (R / 2)).measure_ne_top
+  · exact euclideanUnitBallVolume_ne_zero n
+
+theorem IsStationaryOn.lowerDensity_eq_upperDensity
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
+    V.weightMeasure.lowerDensity n center = V.weightMeasure.upperDensity n center := by
+  have htend := hV.tendsto_densityRatio hR hball
+  rw [Measure.lowerDensity, Measure.upperDensity, htend.liminf_eq, htend.limsup_eq]
+
+theorem IsStationaryOn.upperDensity_ne_top
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
+    V.weightMeasure.upperDensity n center ≠ ∞ := by
+  rw [← hV.lowerDensity_eq_upperDensity hR hball]
+  exact hV.lowerDensity_ne_top hR hball
+
+theorem IsStationaryOn.density_excess
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {ρ : ℝ} (hρ : 0 < ρ) (hball : closedBall center ρ ⊆ U) :
+    V.weightMeasure.lowerDensity n center +
+        (∫⁻ z : E × Grassmannian E n in
+          closedBall center ρ ×ˢ Set.univ,
+          z.2.radialTilt center z.1 ∂V.toMeasure) / euclideanUnitBallVolume n =
+      V.weightMeasure.densityRatio n center ρ := by
+  let r : ℕ → ℝ := fun i => ρ / (i + 1 : ℝ)
+  let D : ℕ → Set (E × Grassmannian E n) := fun i =>
+    (closedBall center ρ \ closedBall center (r i)) ×ˢ Set.univ
+  let tilt : E × Grassmannian E n → ℝ≥0∞ := fun z =>
+    z.2.radialTilt center z.1
+  let f : ℕ → E × Grassmannian E n → ℝ≥0∞ := fun i => (D i).indicator tilt
+  let fLimit : E × Grassmannian E n → ℝ≥0∞ := fun z =>
+    (closedBall center ρ ×ˢ Set.univ).indicator tilt z
+  have hr_pos (i : ℕ) : 0 < r i := by
+    dsimp only [r]
+    positivity
+  have hr_le (i : ℕ) : r i ≤ ρ := by
+    dsimp only [r]
+    apply div_le_self hρ.le
+    norm_num
+  have hr_antitone : Antitone r := by
+    intro i j hij
+    dsimp only [r]
+    gcongr
+  have hr_zero : Tendsto r atTop (𝓝 0) := by
+    simpa only [r, div_eq_mul_inv, one_mul, mul_zero] using
+      tendsto_const_nhds.mul
+        (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ))
+  have hr_tendsto : Tendsto r atTop (𝓝[>] 0) := by
+    rw [tendsto_nhdsWithin_iff]
+    exact ⟨hr_zero, Eventually.of_forall fun i => hr_pos i⟩
+  have hDmeas (i : ℕ) : MeasurableSet (D i) := by
+    exact (measurableSet_closedBall.diff measurableSet_closedBall).prod MeasurableSet.univ
+  have hDmono : Monotone D := by
+    intro i j hij z hz
+    refine ⟨⟨hz.1.1, ?_⟩, hz.2⟩
+    intro hzj
+    exact hz.1.2 (closedBall_subset_closedBall (hr_antitone hij) hzj)
+  have hfmeas (i : ℕ) : Measurable (f i) := by
+    exact (Grassmannian.measurable_radialTilt center).indicator (hDmeas i)
+  have hfmono : ∀ᵐ z ∂V.toMeasure, Monotone fun i => f i z := by
+    filter_upwards [] with z i j hij
+    exact indicator_le_indicator_of_subset (hDmono hij)
+      (show 0 ≤ tilt from fun _ => bot_le) z
+  have hftend : ∀ᵐ z ∂V.toMeasure,
+      Tendsto (fun i => f i z) atTop (𝓝 (fLimit z)) := by
+    filter_upwards [] with z
+    by_cases hzρ : z.1 ∈ closedBall center ρ
+    · by_cases hzc : z.1 = center
+      · apply tendsto_const_nhds.congr'
+        filter_upwards [] with i
+        simp [f, fLimit, D, tilt, hzc, Grassmannian.radialTilt,
+          (hr_pos i).le]
+      · have hdist : 0 < dist z.1 center := dist_pos.mpr hzc
+        have hevent : ∀ᶠ i in atTop, r i < dist z.1 center :=
+          hr_zero.eventually (Iio_mem_nhds hdist)
+        apply tendsto_const_nhds.congr'
+        filter_upwards [hevent] with i hi
+        have hzinner : z.1 ∉ closedBall center (r i) := by
+          simpa only [Metric.mem_closedBall, not_le] using hi
+        simp [f, fLimit, D, hzρ, hzinner]
+    · apply tendsto_const_nhds.congr'
+      filter_upwards [] with i
+      simp [f, fLimit, D, hzρ]
+  have htendTilt : Tendsto
+      (fun i => ∫⁻ z in D i, tilt z ∂V.toMeasure) atTop
+      (𝓝 (∫⁻ z in closedBall center ρ ×ˢ Set.univ, tilt z ∂V.toMeasure)) := by
+    have htend := lintegral_tendsto_of_tendsto_of_monotone
+      (fun i => (hfmeas i).aemeasurable) hfmono hftend
+    simpa only [f, fLimit, lintegral_indicator (hDmeas _),
+      lintegral_indicator (measurableSet_closedBall.prod MeasurableSet.univ)] using htend
+  have hdensity : Tendsto
+      (fun i => V.weightMeasure.densityRatio n center (r i)) atTop
+      (𝓝 (V.weightMeasure.lowerDensity n center)) :=
+    (hV.tendsto_densityRatio hρ hball).comp hr_tendsto
+  have hidentity (i : ℕ) :
+      V.weightMeasure.massRatio n center (r i) +
+          ∫⁻ z in D i, tilt z ∂V.toMeasure =
+        V.weightMeasure.massRatio n center ρ := by
+    simpa only [D, tilt] using hV.monotonicity (hr_pos i) (hr_le i) hball
+  have hnormalized (i : ℕ) :
+      V.weightMeasure.densityRatio n center (r i) +
+          (∫⁻ z in D i, tilt z ∂V.toMeasure) / euclideanUnitBallVolume n =
+        V.weightMeasure.densityRatio n center ρ := by
+    rw [Measure.densityRatio, Measure.densityRatio, ← ENNReal.add_div, hidentity]
+  have htendTiltNormalized : Tendsto
+      (fun i => (∫⁻ z in D i, tilt z ∂V.toMeasure) / euclideanUnitBallVolume n) atTop
+      (𝓝 ((∫⁻ z in closedBall center ρ ×ˢ Set.univ,
+        tilt z ∂V.toMeasure) / euclideanUnitBallVolume n)) :=
+    ENNReal.Tendsto.div_const htendTilt (Or.inr (euclideanUnitBallVolume_ne_zero n))
+  have hsum := hdensity.add htendTiltNormalized
+  have hconst : Tendsto
+      (fun _ : ℕ => V.weightMeasure.densityRatio n center ρ) atTop
+      (𝓝 (V.weightMeasure.densityRatio n center ρ)) := tendsto_const_nhds
+  have hconst' := hconst.congr' (Eventually.of_forall fun i => (hnormalized i).symm)
+  exact tendsto_nhds_unique hsum hconst'
+
+theorem IsStationaryOn.upperSemicontinuousOn_lowerDensity
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U) :
+    UpperSemicontinuousOn (fun x => V.weightMeasure.lowerDensity n x) U := by
+  rw [upperSemicontinuousOn_iff]
+  intro x hx a hxa
+  obtain ⟨R, hR, hRball⟩ := (Metric.isOpen_iff.mp U.2) x hx
+  let R' := R / 2
+  have hR' : 0 < R' := by
+    dsimp only [R']
+    linarith
+  have hclosed : closedBall x R' ⊆ U :=
+    (closedBall_subset_ball (show R' < R by dsimp only [R']; linarith)).trans hRball
+  have hratioRadii : ∀ᶠ r in 𝓝[>] 0,
+      V.weightMeasure.densityRatio n x r < a :=
+    (hV.tendsto_densityRatio hR' hclosed).eventually (Iio_mem_nhds hxa)
+  have hsmall : ∀ᶠ r in 𝓝[>] 0, r < R' :=
+    Filter.Eventually.filter_mono inf_le_left (Iio_mem_nhds hR')
+  have hpos : ∀ᶠ r : ℝ in 𝓝[>] (0 : ℝ), 0 < r := self_mem_nhdsWithin
+  obtain ⟨r, ⟨hratio, hr⟩, hrR⟩ :=
+    ((hratioRadii.and hpos).and hsmall).exists
+  have hratioNear : ∀ᶠ y in 𝓝 x,
+      V.weightMeasure.densityRatio n y r < a :=
+    (V.weightMeasure.upperSemicontinuous_densityRatio n hr) x a hratio
+  have hratioNearWithin : ∀ᶠ y in 𝓝[U] x,
+      V.weightMeasure.densityRatio n y r < a :=
+    Filter.Eventually.filter_mono inf_le_left hratioNear
+  have hballNearWithin : ∀ᶠ y in 𝓝[U] x, y ∈ ball x (R' - r) :=
+    Filter.Eventually.filter_mono inf_le_left (ball_mem_nhds x (sub_pos.mpr hrR))
+  filter_upwards [hratioNearWithin, hballNearWithin] with y hyratio hy
+  have hsub : closedBall y r ⊆ closedBall x R' := by
+    apply closedBall_subset_closedBall'
+    rw [mem_ball] at hy
+    linarith
+  have hdensity := hV.density_excess hr (hsub.trans hclosed)
+  exact (le_add_right le_rfl |>.trans_eq hdensity).trans_lt hyratio
 
 end Varifold
