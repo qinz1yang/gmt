@@ -69,4 +69,12 @@ def weightMeasure (V : Varifold E n) : Measure E := V.toMeasure.fst
 -- Simon, Chapter 8, Section 1, p. 206: M(V) = mu_V(U), here with global ambient domain E.
 def mass (V : Varifold E n) : ℝ≥0∞ := V.weightMeasure Set.univ
 
+-- Simon, Chapter 8, Section 1, p. 206: the mass M(V) = mu_V(U) on an open domain U.
+def massOn (V : Varifold E n) (U : TopologicalSpace.Opens E) : ℝ≥0∞ :=
+  V.weightMeasure (U : Set E)
+
+@[simp]
+theorem massOn_top (V : Varifold E n) : V.massOn (⊤ : TopologicalSpace.Opens E) = V.mass := by
+  simp [massOn, mass]
+
 end Varifold

@@ -179,6 +179,25 @@ theorem firstVariation_apply (V : Varifold E n) (U : Opens E)
       z.2.tangentialDivergence X z.1 ∂V.toMeasure :=
   by rw [firstVariation, TestFunction.limitCLM_apply]
 
+-- Simon, Chapter 8, formula (2.3), p. 209: the same integral over G_n(U).
+theorem firstVariation_apply_restrict (V : Varifold E n) (U : Opens E)
+    (X : TestFunction U E 1) :
+    V.firstVariation U X = ∫ z in (U : Set E) ×ˢ Set.univ,
+      z.2.tangentialDivergence X z.1 ∂V.toMeasure := by
+  rw [firstVariation_apply]
+  symm
+  apply setIntegral_eq_integral_of_forall_compl_eq_zero
+  intro z hz
+  have hzU : z.1 ∉ (U : Set E) := by
+    intro hzU
+    exact hz ⟨hzU, Set.mem_univ _⟩
+  have hzT : z.1 ∉ tsupport X := by
+    intro hzT
+    exact hzU (X.tsupport_subset hzT)
+  by_contra hne
+  apply hzT
+  apply (Grassmannian.support_tangentialDivergence_subset X) hne |>.1
+
 @[simp]
 theorem firstVariation_zero (U : Opens E) :
     (0 : Varifold E n).firstVariation U = 0 := by

@@ -1326,6 +1326,18 @@ theorem IsStationaryOn.density_excess
   have hconst' := hconst.congr' (Eventually.of_forall fun i => (hnormalized i).symm)
   exact tendsto_nhds_unique hsum hconst'
 
+-- Simon, Chapter 4, formula (3.10), p. 91; Chapter 8, formula (3.4), p. 211.
+theorem IsStationaryOn.density_excess_sub
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {ρ : ℝ} (hρ : 0 < ρ) (hball : closedBall center ρ ⊆ U) :
+    V.weightMeasure.densityRatio n center ρ - V.weightMeasure.lowerDensity n center =
+      (∫⁻ z : E × Grassmannian E n in
+        closedBall center ρ ×ˢ Set.univ,
+        z.2.radialTilt center z.1 ∂V.toMeasure) / euclideanUnitBallVolume n := by
+  have h := hV.density_excess hρ hball
+  apply ENNReal.sub_eq_of_eq_add (hV.lowerDensity_ne_top hρ hball)
+  simpa [add_comm] using h.symm
+
 -- Simon, Chapter 4, formula (3.11), p. 91: upper semicontinuity of stationary density.
 theorem IsStationaryOn.upperSemicontinuousOn_lowerDensity
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U) :
