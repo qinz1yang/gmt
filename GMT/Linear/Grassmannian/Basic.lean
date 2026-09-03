@@ -87,7 +87,7 @@ theorem norm_tangentialTrace_le (S : Grassmannian E n) (A : E →L[ℝ] E) :
         exact ContinuousLinearMap.le_opNorm _ _
     _ ≤ ‖ContinuousLinearMap.trace ℝ E‖ * (‖S.projection‖ * ‖A‖) :=
       mul_le_mul_of_nonneg_left (ContinuousLinearMap.opNorm_comp_le _ _)
-        (norm_nonneg _)
+        (norm_nonneg (ContinuousLinearMap.trace ℝ E))
     _ ≤ ‖ContinuousLinearMap.trace ℝ E‖ * (1 * ‖A‖) := by
       gcongr
       exact S.norm_projection_le
@@ -167,5 +167,23 @@ theorem tangentialTrace_rankOne_self (S : Grassmannian E n) (x : E) :
       ‖S.projection x‖ ^ 2 := by
   rw [S.tangentialTrace_rankOne]
   simpa [real_inner_comm] using S.inner_projection_self x
+
+theorem tangentialTrace_eq_sum_inner (S : Grassmannian E n)
+    {ι : Type*} [Fintype ι] (b : OrthonormalBasis ι ℝ S.subspace)
+    (A : E →L[ℝ] E) :
+    S.tangentialTrace A = ∑ i, inner ℝ ((b i : S.subspace) : E) (A (b i : E)) := by
+  let P : E →ₗ[ℝ] S.subspace :=
+    S.projection.toLinearMap.codRestrict S.subspace fun x => S.projection_apply_mem x
+  let I : S.subspace →ₗ[ℝ] E := S.subspace.subtype
+  have hfactor : I ∘ₗ (P ∘ₗ A.toLinearMap) = (S.projection.comp A).toLinearMap := by
+    ext x
+    rfl
+  rw [tangentialTrace_apply, ← hfactor, LinearMap.trace_comp_comm',
+    LinearMap.trace_eq_sum_inner _ b]
+  apply Finset.sum_congr rfl
+  intro i _
+  change inner ℝ ((b i : S.subspace) : E) (S.projection (A (b i : E))) = _
+  rw [S.projection_eq_starProjection]
+  exact S.subspace.inner_orthogonalProjectionOnto_eq_of_mem_left (b i) (A (b i : E))
 
 end Grassmannian

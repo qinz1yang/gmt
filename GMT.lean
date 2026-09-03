@@ -1,8 +1,10 @@
 import GMT.Linear.Grassmannian.Basic
 import GMT.Linear.Trace
 import GMT.Analysis.Radial
+import GMT.Analysis.IntegrationByParts
 import GMT.Measure.Density
 import GMT.Measure.Marginal
 import GMT.Varifold.Basic
 import GMT.Varifold.FirstVariation
 import GMT.Varifold.Monotonicity
+import GMT.Varifold.Plane

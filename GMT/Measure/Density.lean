@@ -21,6 +21,64 @@ theorem euclideanUnitBallVolume_ne_top (n : ℕ) : euclideanUnitBallVolume n ≠
   rw [euclideanUnitBallVolume, EuclideanSpace.euclideanHausdorffMeasure_eq_volume]
   exact measure_closedBall_lt_top.ne
 
+private theorem euclideanHausdorffMeasure_unit_closedBall
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] :
+    (μHE[Module.finrank ℝ E] : Measure E) (closedBall 0 1) =
+      euclideanUnitBallVolume (Module.finrank ℝ E) := by
+  let e := (stdOrthonormalBasis ℝ E).repr
+  rw [euclideanUnitBallVolume]
+  calc
+    (μHE[Module.finrank ℝ E] : Measure E) (closedBall 0 1) =
+        (μHE[Module.finrank ℝ E] :
+          Measure (EuclideanSpace ℝ (Fin (Module.finrank ℝ E))))
+            (e '' closedBall 0 1) :=
+      (e.isometry.euclideanHausdorffMeasure_image (closedBall 0 1)).symm
+    _ = (μHE[Module.finrank ℝ E] :
+          Measure (EuclideanSpace ℝ (Fin (Module.finrank ℝ E))))
+            (closedBall 0 1) := by
+      rw [e.image_closedBall]
+      simp only [map_zero]
+
+theorem euclideanHausdorffMeasure_closedBall
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+    (x : E) {r : ℝ} (hr : 0 < r) :
+    (μHE[Module.finrank ℝ E] : Measure E) (closedBall x r) =
+      (ENNReal.ofReal r) ^ Module.finrank ℝ E *
+        euclideanUnitBallVolume (Module.finrank ℝ E) := by
+  have hcenter : (μHE[Module.finrank ℝ E] : Measure E) (closedBall x r) =
+      (μHE[Module.finrank ℝ E] : Measure E) (closedBall (0 : E) r) := by
+    have h := measure_preimage_vadd (μHE[Module.finrank ℝ E] : Measure E)
+      (-x) (closedBall (0 : E) r)
+    have hset : (fun y : E => -x +ᵥ y) ⁻¹' closedBall (0 : E) r = closedBall x r := by
+      ext y
+      simp [mem_closedBall, dist_eq_norm, vadd_eq_add, sub_eq_add_neg, add_comm]
+    rw [hset] at h
+    exact h
+  have hscale : (r • ·) '' closedBall (0 : E) 1 = closedBall 0 r := by
+    simpa [Real.norm_of_nonneg hr.le] using
+      Metric.smul_image_closedBall hr.ne' (0 : E) 1
+  calc
+    (μHE[Module.finrank ℝ E] : Measure E) (closedBall x r) =
+        (μHE[Module.finrank ℝ E] : Measure E) (closedBall (0 : E) r) := hcenter
+    _ = (μHE[Module.finrank ℝ E] : Measure E)
+        ((r • ·) '' closedBall (0 : E) 1) :=
+      congrArg (fun s : Set E => (μHE[Module.finrank ℝ E] : Measure E) s) hscale.symm
+    _ = ‖r‖₊ ^ Module.finrank ℝ E •
+        (μHE[Module.finrank ℝ E] : Measure E) (closedBall 0 1) :=
+      Measure.euclideanHausdorffMeasure_smul₀ (Module.finrank ℝ E) hr.ne' _
+    _ = (ENNReal.ofReal r) ^ Module.finrank ℝ E *
+        euclideanUnitBallVolume (Module.finrank ℝ E) := by
+      rw [euclideanHausdorffMeasure_unit_closedBall]
+      change (↑‖r‖₊ : ℝ≥0∞) ^ Module.finrank ℝ E *
+        euclideanUnitBallVolume (Module.finrank ℝ E) = _
+      have hnorm : (↑‖r‖₊ : ℝ≥0∞) = ENNReal.ofReal r := by
+        calc
+          (↑‖r‖₊ : ℝ≥0∞) = ENNReal.ofReal ‖r‖ := (ofReal_norm r).symm
+          _ = ENNReal.ofReal r := by rw [Real.norm_of_nonneg hr.le]
+      rw [hnorm]
+
 namespace Measure
 
 variable {E : Type*} [PseudoMetricSpace E] [MeasurableSpace E]
