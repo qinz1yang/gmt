@@ -1149,6 +1149,22 @@ theorem IsStationaryOn.monotonicity
     exact monotonicity_zero_dim V hσ hσρ.le
   · exact hV.monotonicity_of_pos_of_lt (Nat.pos_of_ne_zero hn) hσ hσρ hball
 
+-- Simon, Chapter 4, formula (3.6), p. 90: subtraction form of the exact identity.
+theorem IsStationaryOn.monotonicity_sub
+    {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
+    {center : E} {σ ρ : ℝ} (hσ : 0 < σ) (hσρ : σ ≤ ρ)
+    (hball : closedBall center ρ ⊆ U) :
+    V.weightMeasure.massRatio n center ρ - V.weightMeasure.massRatio n center σ =
+      ∫⁻ z : E × Grassmannian E n in
+        (closedBall center ρ \ closedBall center σ) ×ˢ Set.univ,
+        z.2.radialTilt center z.1 ∂V.toMeasure := by
+  apply ENNReal.sub_eq_of_eq_add
+  · apply ENNReal.mul_ne_top
+    · exact ENNReal.pow_ne_top
+        (ENNReal.inv_ne_top.mpr (ENNReal.ofReal_ne_zero_iff.mpr hσ))
+    · exact (isCompact_closedBall center σ).measure_ne_top
+  · simpa [add_comm] using (hV.monotonicity hσ hσρ hball).symm
+
 -- Simon, Chapter 4, formula (3.8), p. 91: monotonicity of the mass ratio.
 theorem IsStationaryOn.massRatio_monotoneOn
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)

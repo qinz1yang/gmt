@@ -253,4 +253,13 @@ theorem IsStationaryOn.integral_tangentialDivergence_eq_zero
       z.2.tangentialDivergence X z.1 ∂V.toMeasure = 0 := by
   simpa using hV.firstVariation_eq_zero X
 
+-- Simon, Chapter 8, formulas (2.3)-(2.4), p. 209: the stationary identity over G_n(U).
+theorem IsStationaryOn.integral_tangentialDivergence_eq_zero_restrict
+    {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
+    (X : TestFunction U E 1) :
+    ∫ z in (U : Set E) ×ˢ Set.univ,
+      z.2.tangentialDivergence X z.1 ∂V.toMeasure = 0 := by
+  rw [← V.firstVariation_apply_restrict U X]
+  exact hV.firstVariation_eq_zero X
+
 end Varifold
