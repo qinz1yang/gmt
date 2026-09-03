@@ -5,10 +5,12 @@ noncomputable section
 
 open InnerProductSpace
 
+-- Simon, Chapter 4, Section 3, pp. 89-90: the radial test field X(y) = gamma(r)(y - xi).
 def radialVectorField {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     (center : E) (profile : ℝ → ℝ) (x : E) : E :=
   profile ‖x - center‖ • (x - center)
 
+-- Simon, Chapter 4, formulas (3.2)-(3.6), pp. 89-91: the smooth squared-radius proof engine.
 def squaredRadiusRadialVectorField {E : Type*} [NormedAddCommGroup E]
     [NormedSpace ℝ E] (center : E) (profile : ℝ → ℝ) (x : E) : E :=
   profile (‖x - center‖ ^ 2) • (x - center)
@@ -24,6 +26,7 @@ theorem contDiff_squaredRadiusRadialVectorField
     contDiff_id.sub contDiff_const
   exact (hprofile.comp (hsub.norm_sq ℝ)).smul hsub
 
+-- Simon, Chapter 4, formula (3.2), p. 89: derivative of the radial test field.
 theorem hasFDerivAt_radialVectorField
     {profile : ℝ → ℝ} {profile' : ℝ} {center x : E}
     (hprofile : HasDerivAt profile profile' ‖x - center‖)
@@ -72,6 +75,7 @@ theorem hasFDerivAt_radialVectorField
   change HasFDerivAt (fun y : E => profile ‖y - center‖ • (y - center)) _ x
   exact (hscalar.smul hvector).congr_fderiv hderiv
 
+-- Simon, Chapter 4, formulas (3.2)-(3.3), pp. 89-90: squared-radius reparameterization.
 theorem hasFDerivAt_squaredRadiusRadialVectorField
     {profile : ℝ → ℝ} {profile' : ℝ} {center x : E}
     (hprofile : HasDerivAt profile profile' (‖x - center‖ ^ 2)) :
@@ -105,6 +109,7 @@ namespace Grassmannian
 
 variable [FiniteDimensional ℝ E] {n : ℕ}
 
+-- Simon, Chapter 4, formula (3.2), p. 89: tangential divergence of the radial field.
 theorem tangentialTrace_fderiv_radialVectorField (S : Grassmannian E n)
     {profile : ℝ → ℝ} {profile' : ℝ} {center x : E}
     (hprofile : HasDerivAt profile profile' ‖x - center‖) (hx : x ≠ center) :
@@ -116,6 +121,7 @@ theorem tangentialTrace_fderiv_radialVectorField (S : Grassmannian E n)
     S.tangentialTrace_rankOne_self]
   ring
 
+-- Simon, Chapter 4, formula (3.2), p. 90: rewrite using the perpendicular radial component.
 theorem tangentialTrace_fderiv_radialVectorField_eq_perpendicularProjection
     (S : Grassmannian E n) {profile : ℝ → ℝ} {profile' : ℝ}
     {center x : E} (hprofile : HasDerivAt profile profile' ‖x - center‖)
@@ -153,6 +159,7 @@ theorem tangentialTrace_fderiv_radialVectorField_eq_perpendicularProjection
                 _ = ‖x - center‖ * profile' := mul_comm _ _]
             ring
 
+-- Simon, Chapter 4, formulas (3.2)-(3.3), pp. 89-90: squared-radius tangential divergence.
 theorem tangentialTrace_fderiv_squaredRadiusRadialVectorField
     (S : Grassmannian E n) {profile : ℝ → ℝ} {profile' : ℝ}
     {center x : E} (hprofile : HasDerivAt profile profile' (‖x - center‖ ^ 2)) :

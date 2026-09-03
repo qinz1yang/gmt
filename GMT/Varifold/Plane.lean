@@ -44,6 +44,7 @@ private theorem isometry_subspace_val (S : Grassmannian E n) :
 
 variable [MeasurableSpace E] [BorelSpace E]
 
+-- Simon, Chapter 8, Section 1, p. 206: the multiplicity-one flat-plane specialization.
 def ofPlane (S : Grassmannian E n) : Varifold E n where
   toMeasure := μHE[n].map fun y : S.subspace => ((y : E), S)
   isFiniteMeasureOnCompacts := by

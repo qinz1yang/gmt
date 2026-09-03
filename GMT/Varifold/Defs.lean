@@ -5,6 +5,7 @@ open scoped ENNReal MeasureTheory NNReal
 
 noncomputable section
 
+-- Simon, Chapter 8, Section 1, pp. 205-206: a general n-varifold as a locally finite measure.
 structure Varifold (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] (n : ℕ) where
   toMeasure : MeasureTheory.Measure (E × Grassmannian E n)
@@ -62,8 +63,10 @@ theorem toMeasure_add (V W : Varifold E n) :
 theorem toMeasure_smul (c : ℝ≥0) (V : Varifold E n) :
     (c • V).toMeasure = c • V.toMeasure := rfl
 
+-- Simon, Chapter 8, Section 1, p. 206: the weight measure mu_V.
 def weightMeasure (V : Varifold E n) : Measure E := V.toMeasure.fst
 
-def mass (V : Varifold E n) (s : Set E) : ℝ≥0∞ := V.weightMeasure s
+-- Simon, Chapter 8, Section 1, p. 206: M(V) = mu_V(U), here with global ambient domain E.
+def mass (V : Varifold E n) : ℝ≥0∞ := V.weightMeasure Set.univ
 
 end Varifold

@@ -15,6 +15,7 @@ namespace Grassmannian
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] {n : ℕ}
 
+-- Simon, Chapter 4, formulas (3.6) and (3.10), pp. 90-91: the radial tilt kernel.
 def radialTilt (S : Grassmannian E n) (center x : E) : ℝ≥0∞ :=
   ENNReal.ofReal
     (‖S.perpendicularProjection (x - center)‖ ^ 2 / ‖x - center‖ ^ (n + 2))
@@ -52,6 +53,7 @@ open MeasureTheory
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] {n : ℕ}
 
+-- Simon, Chapter 4, formula (3.3), p. 90: stationary radial test-field identity.
 theorem IsStationaryOn.integral_squaredRadiusRadial_eq_zero
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     {center : E} {profile : ℝ → ℝ} {R : ℝ} (hR : 0 ≤ R)
@@ -95,6 +97,7 @@ theorem IsStationaryOn.integral_squaredRadiusRadial_eq_zero
             exact (hprofile.differentiable (by norm_num) _).hasDerivAt
     _ = 0 := hstationary
 
+-- Simon, Chapter 4, formula (3.3), p. 90: perpendicular-projection form of the identity.
 theorem IsStationaryOn.integral_squaredRadiusRadial_perpendicular_eq_zero
     {V : Varifold E n} {U : Opens E} (hV : V.IsStationaryOn U)
     {center : E} {profile : ℝ → ℝ} {R : ℝ} (hR : 0 ≤ R)
@@ -1128,6 +1131,7 @@ private theorem monotonicity_zero_dim
     (measure_add_sdiff (μ := V.weightMeasure) (s := closedBall center σ)
       measurableSet_closedBall.nullMeasurableSet (closedBall center ρ))
 
+-- Simon, Chapter 4, formula (3.6), p. 90: exact stationary monotonicity identity.
 theorem IsStationaryOn.monotonicity
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {σ ρ : ℝ} (hσ : 0 < σ) (hσρ : σ ≤ ρ)
@@ -1145,6 +1149,7 @@ theorem IsStationaryOn.monotonicity
     exact monotonicity_zero_dim V hσ hσρ.le
   · exact hV.monotonicity_of_pos_of_lt (Nat.pos_of_ne_zero hn) hσ hσρ hball
 
+-- Simon, Chapter 4, formula (3.8), p. 91: monotonicity of the mass ratio.
 theorem IsStationaryOn.massRatio_monotoneOn
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hball : closedBall center R ⊆ U) :
@@ -1155,6 +1160,7 @@ theorem IsStationaryOn.massRatio_monotoneOn
   rw [← hidentity]
   exact le_add_right le_rfl
 
+-- Simon, Chapter 4, formulas (3.8)-(3.9), p. 91: normalized density-ratio monotonicity.
 theorem IsStationaryOn.densityRatio_monotoneOn
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hball : closedBall center R ⊆ U) :
@@ -1163,6 +1169,7 @@ theorem IsStationaryOn.densityRatio_monotoneOn
   exact ENNReal.div_le_div
     (hV.massRatio_monotoneOn hball hσ hρ hσρ) le_rfl
 
+-- Simon, Chapter 4, formula (3.9), p. 91: existence of the density limit.
 theorem IsStationaryOn.tendsto_densityRatio
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
@@ -1179,6 +1186,7 @@ theorem IsStationaryOn.tendsto_densityRatio
   rw [hlower]
   exact htend
 
+-- Simon, Chapter 4, formula (3.9), p. 91: finiteness of the density.
 theorem IsStationaryOn.lowerDensity_ne_top
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
@@ -1201,6 +1209,7 @@ theorem IsStationaryOn.lowerDensity_ne_top
     · exact (isCompact_closedBall center (R / 2)).measure_ne_top
   · exact euclideanUnitBallVolume_ne_zero n
 
+-- Simon, Chapter 4, formula (3.9), p. 91: lower and upper density agree.
 theorem IsStationaryOn.lowerDensity_eq_upperDensity
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
@@ -1208,6 +1217,7 @@ theorem IsStationaryOn.lowerDensity_eq_upperDensity
   have htend := hV.tendsto_densityRatio hR hball
   rw [Measure.lowerDensity, Measure.upperDensity, htend.liminf_eq, htend.limsup_eq]
 
+-- Simon, Chapter 4, formula (3.9), p. 91: upper density is finite.
 theorem IsStationaryOn.upperDensity_ne_top
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {R : ℝ} (hR : 0 < R) (hball : closedBall center R ⊆ U) :
@@ -1215,6 +1225,7 @@ theorem IsStationaryOn.upperDensity_ne_top
   rw [← hV.lowerDensity_eq_upperDensity hR hball]
   exact hV.lowerDensity_ne_top hR hball
 
+-- Simon, Chapter 4, formula (3.10), p. 91; Chapter 8, formula (3.4), p. 211.
 theorem IsStationaryOn.density_excess
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U)
     {center : E} {ρ : ℝ} (hρ : 0 < ρ) (hball : closedBall center ρ ⊆ U) :
@@ -1315,6 +1326,7 @@ theorem IsStationaryOn.density_excess
   have hconst' := hconst.congr' (Eventually.of_forall fun i => (hnormalized i).symm)
   exact tendsto_nhds_unique hsum hconst'
 
+-- Simon, Chapter 4, formula (3.11), p. 91: upper semicontinuity of stationary density.
 theorem IsStationaryOn.upperSemicontinuousOn_lowerDensity
     {V : Varifold E n} {U : TopologicalSpace.Opens E} (hV : V.IsStationaryOn U) :
     UpperSemicontinuousOn (fun x => V.weightMeasure.lowerDensity n x) U := by

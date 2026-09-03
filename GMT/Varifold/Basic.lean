@@ -41,6 +41,7 @@ theorem weightMeasure_smul (c : ℝ≥0) (V : Varifold E n) :
     (c • V).weightMeasure = c • V.weightMeasure := by
   simp [weightMeasure, Measure.fst, Measure.map_smul]
 
+-- Simon, Chapter 8, Section 1, p. 206: restriction V |_ G_n(A).
 def restrict (V : Varifold E n) (s : Set E) : Varifold E n :=
   ⟨V.toMeasure.restrict (s ×ˢ Set.univ), inferInstance⟩
 
