@@ -1,0 +1,125 @@
+import GMT.Linear.Grassmannian.Defs
+import Mathlib.Analysis.InnerProductSpace.Projection.FiniteDimensional
+import Mathlib.Topology.MetricSpace.ProperSpace
+
+noncomputable section
+
+open Module
+
+namespace Grassmannian
+
+variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] {n : ℕ}
+
+private def traceCLM : (E →L[ℝ] E) →L[ℝ] ℝ :=
+  ({ toFun := fun p : E →L[ℝ] E => LinearMap.trace ℝ E p.toLinearMap
+     map_add' := fun p q => (LinearMap.trace ℝ E).map_add p.toLinearMap q.toLinearMap
+     map_smul' := fun c p => (LinearMap.trace ℝ E).map_smul c p.toLinearMap } :
+    (E →L[ℝ] E) →ₗ[ℝ] ℝ).toContinuousLinearMap
+
+private theorem isClosed_set : IsClosed {p : E →L[ℝ] E |
+    IsStarProjection p ∧ LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)} := by
+  rw [show {p : E →L[ℝ] E | IsStarProjection p ∧
+      LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)} =
+    {p | p * p = p} ∩ {p | star p = p} ∩
+      {p | LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)} by
+      ext p
+      simp only [Set.mem_ofPred_eq, Set.mem_inter_iff, isStarProjection_iff,
+        IsIdempotentElem, IsSelfAdjoint]]
+  exact ((isClosed_eq (continuous_id.mul continuous_id) continuous_id).inter
+      (isClosed_eq continuous_star continuous_id)).inter
+    (isClosed_eq traceCLM.continuous continuous_const)
+
+theorem norm_projection_le (S : Grassmannian E n) : ‖S.projection‖ ≤ 1 := by
+  obtain ⟨_, h⟩ := isStarProjection_iff_eq_starProjection_range.mp S.property.1
+  change ‖S.1‖ ≤ 1
+  rw [h]
+  exact Submodule.starProjection_norm_le _
+
+private theorem isBounded_set : Bornology.IsBounded {p : E →L[ℝ] E |
+    IsStarProjection p ∧ LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)} := by
+  rw [Metric.isBounded_iff_subset_closedBall 0]
+  exact ⟨1, fun p hp => by
+    simp only [Metric.mem_closedBall, dist_zero_right]
+    have h := norm_projection_le (⟨p, hp⟩ : Grassmannian E n)
+    change ‖p‖ ≤ 1 at h
+    exact h⟩
+
+instance : CompactSpace (Grassmannian E n) := by
+  change CompactSpace {p : E →L[ℝ] E //
+    IsStarProjection p ∧ LinearMap.trace ℝ E p.toLinearMap = (n : ℝ)}
+  exact isCompact_iff_compactSpace.mp <|
+    Metric.isCompact_iff_isClosed_bounded.mpr ⟨isClosed_set, isBounded_set⟩
+
+@[simp]
+theorem finrank_subspace (S : Grassmannian E n) : finrank ℝ S.subspace = n := by
+  have hp : IsIdempotentElem S.projection.toLinearMap :=
+    ContinuousLinearMap.isIdempotentElem_toLinearMap_iff.mpr S.property.1.1
+  have h := (LinearMap.IsIdempotentElem.isProj_range S.projection.toLinearMap hp).trace
+  rw [S.trace_projection] at h
+  exact_mod_cast h.symm
+
+theorem projection_eq_starProjection (S : Grassmannian E n) :
+    S.projection = S.subspace.starProjection := by
+  obtain ⟨_, h⟩ := isStarProjection_iff_eq_starProjection_range.mp S.property.1
+  exact h
+
+@[simp]
+theorem perpendicularProjection_eq (S : Grassmannian E n) :
+    S.perpendicularProjection = S.subspaceᗮ.starProjection := by
+  rw [Submodule.starProjection_orthogonal, perpendicularProjection,
+    S.projection_eq_starProjection]
+
+def ofSubmodule (S : Submodule ℝ E) (hS : finrank ℝ S = n) : Grassmannian E n :=
+  ⟨S.starProjection, isStarProjection_starProjection, by
+    have hp : IsIdempotentElem S.starProjection.toLinearMap :=
+      ContinuousLinearMap.isIdempotentElem_toLinearMap_iff.mpr
+        S.isIdempotentElem_starProjection
+    rw [(LinearMap.IsIdempotentElem.isProj_range S.starProjection.toLinearMap hp).trace,
+      Submodule.range_starProjection, hS]⟩
+
+@[simp]
+theorem projection_ofSubmodule (S : Submodule ℝ E) (hS : finrank ℝ S = n) :
+    (ofSubmodule S hS).projection = S.starProjection := rfl
+
+@[simp]
+theorem subspace_ofSubmodule (S : Submodule ℝ E) (hS : finrank ℝ S = n) :
+    (ofSubmodule S hS).subspace = S :=
+  Submodule.range_starProjection S
+
+@[ext]
+theorem ext {S T : Grassmannian E n} (h : S.subspace = T.subspace) : S = T := by
+  apply ext_projection
+  rw [S.projection_eq_starProjection, T.projection_eq_starProjection, h]
+
+@[simp]
+theorem projection_apply_mem (S : Grassmannian E n) (x : E) :
+    S.projection x ∈ S.subspace :=
+  LinearMap.mem_range_self S.projection.toLinearMap x
+
+theorem perpendicularProjection_apply_mem (S : Grassmannian E n) (x : E) :
+    S.perpendicularProjection x ∈ S.subspaceᗮ := by
+  rw [S.perpendicularProjection_eq]
+  exact Submodule.starProjection_apply_mem _ _
+
+theorem projection_add_perpendicularProjection (S : Grassmannian E n) (x : E) :
+    S.projection x + S.perpendicularProjection x = x := by
+  simp [perpendicularProjection]
+
+theorem inner_projection_perpendicularProjection (S : Grassmannian E n) (x y : E) :
+    inner ℝ (S.projection x) (S.perpendicularProjection y) = 0 := by
+  exact S.subspace.inner_right_of_mem_orthogonal
+    (S.projection_apply_mem x) (S.perpendicularProjection_apply_mem y)
+
+theorem norm_sq_projection_add_norm_sq_perpendicularProjection
+    (S : Grassmannian E n) (x : E) :
+    ‖x‖ ^ 2 = ‖S.projection x‖ ^ 2 + ‖S.perpendicularProjection x‖ ^ 2 := by
+  rw [S.projection_eq_starProjection, S.perpendicularProjection_eq]
+  exact S.subspace.norm_sq_eq_add_norm_sq_starProjection x
+
+theorem inner_projection_self (S : Grassmannian E n) (x : E) :
+    inner ℝ (S.projection x) x = ‖S.projection x‖ ^ 2 := by
+  rw [S.projection_eq_starProjection]
+  simpa using S.subspace.re_inner_starProjection_eq_normSq x
+
+end Grassmannian
