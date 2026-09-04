@@ -119,21 +119,6 @@ private lemma orthogonal_restrict_bijective
     exact K.isCompl_orthogonal.symm.codisjoint
   exact ⟨hinj, hsurj⟩
 
-private lemma normDet_adjoint_of_finrank_eq
-    {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
-    [FiniteDimensional ℝ U] [NormedAddCommGroup V] [InnerProductSpace ℝ V]
-    [FiniteDimensional ℝ V] (R : U →ₗ[ℝ] V)
-    (h : Module.finrank ℝ U = Module.finrank ℝ V) :
-    R.adjoint.normDet = R.normDet := by
-  let bU : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ U :=
-    stdOrthonormalBasis ℝ U
-  let bV : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ V :=
-    (stdOrthonormalBasis ℝ V).reindex (finCongr h.symm)
-  rw [R.normDet_eq_norm_det_toMatrix bU bV]
-  rw [R.adjoint.normDet_eq_norm_det_toMatrix bV bU]
-  rw [LinearMap.toMatrix_adjoint]
-  simp
-
 omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
 theorem linear_coarea_factor_eq_normDet_adjoint
     (L : E →ₗ[ℝ] F) (hL : Function.Surjective L) :
@@ -164,7 +149,7 @@ theorem linear_coarea_factor_eq_normDet_adjoint
     let e : Kᗮ ≃ₗ[ℝ] F := LinearEquiv.ofBijective R hR
     exact e.finrank_eq
   rw [hfactor, LinearMap.normDet_comp, hi, one_mul,
-    normDet_adjoint_of_finrank_eq R hdim]
+    LinearMap.normDet_adjoint_of_finrank_eq R hdim]
 
 private lemma affine_subspace_to_orthogonal
     {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]

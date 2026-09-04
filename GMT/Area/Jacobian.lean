@@ -8,6 +8,25 @@ open Set
 open MeasureTheory
 open scoped ENNReal MeasureTheory NNReal
 
+namespace LinearMap
+
+theorem normDet_adjoint_of_finrank_eq
+    {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
+    [FiniteDimensional ℝ U] [NormedAddCommGroup V] [InnerProductSpace ℝ V]
+    [FiniteDimensional ℝ V] (L : U →ₗ[ℝ] V)
+    (h : Module.finrank ℝ U = Module.finrank ℝ V) :
+    L.adjoint.normDet = L.normDet := by
+  let bU : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ U :=
+    stdOrthonormalBasis ℝ U
+  let bV : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ V :=
+    (stdOrthonormalBasis ℝ V).reindex (finCongr h.symm)
+  rw [L.normDet_eq_norm_det_toMatrix bU bV]
+  rw [L.adjoint.normDet_eq_norm_det_toMatrix bV bU]
+  rw [LinearMap.toMatrix_adjoint]
+  simp
+
+end LinearMap
+
 namespace Area
 
 theorem lipschitz_extension_real {X : Type*} [PseudoMetricSpace X] {s : Set X}
@@ -81,6 +100,66 @@ theorem jacobian_linearMap (L : E →ₗ[ℝ] F) (x : E) :
     jacobian L x = L.normDet := by
   let L' : E →L[ℝ] F := L.toContinuousLinearMap
   simpa [L'] using jacobian_continuousLinearMap L' x
+
+section
+
+variable [FiniteDimensional ℝ F]
+
+def coareaJacobian (f : E → F) (x : E) : ℝ :=
+  (fderiv ℝ f x).toLinearMap.adjoint.normDet
+
+theorem coareaJacobian_nonneg (f : E → F) (x : E) : 0 ≤ coareaJacobian f x := by
+  exact LinearMap.normDet_nonneg _
+
+theorem coareaJacobian_of_hasFDerivAt {f : E → F} {L : E →L[ℝ] F} {x : E}
+    (h : HasFDerivAt f L x) : coareaJacobian f x = L.toLinearMap.adjoint.normDet := by
+  simp [coareaJacobian, h.fderiv]
+
+theorem coareaJacobian_continuousLinearMap (L : E →L[ℝ] F) (x : E) :
+    coareaJacobian L x = L.toLinearMap.adjoint.normDet := by
+  exact coareaJacobian_of_hasFDerivAt L.hasFDerivAt
+
+theorem coareaJacobian_linearMap (L : E →ₗ[ℝ] F) (x : E) :
+    coareaJacobian L x = L.adjoint.normDet := by
+  let L' : E →L[ℝ] F := L.toContinuousLinearMap
+  simpa [L'] using coareaJacobian_continuousLinearMap L' x
+
+theorem coareaJacobian_eq_jacobian_of_finrank_eq
+    (h : Module.finrank ℝ E = Module.finrank ℝ F) (f : E → F) (x : E) :
+    coareaJacobian f x = jacobian f x := by
+  exact LinearMap.normDet_adjoint_of_finrank_eq _ h
+
+theorem coareaJacobian_eq_zero_of_not_surjective
+    {f : E → F} {L : E →L[ℝ] F} {x : E} (hf : HasFDerivAt f L x)
+    (hL : ¬ Function.Surjective L) : coareaJacobian f x = 0 := by
+  rw [coareaJacobian_of_hasFDerivAt hf, LinearMap.normDet_eq_zero_iff_ker_ne_bot,
+    ← LinearMap.orthogonal_range]
+  intro h
+  apply hL
+  exact LinearMap.range_eq_top.mp (Submodule.orthogonal_eq_bot_iff.mp h)
+
+theorem coareaJacobian_eq_zero_of_finrank_lt
+    (h : Module.finrank ℝ E < Module.finrank ℝ F) (f : E → F) (x : E) :
+    coareaJacobian f x = 0 := by
+  rw [coareaJacobian, LinearMap.normDet_eq_zero_iff_ker_ne_bot]
+  exact (fderiv ℝ f x).toLinearMap.adjoint.ker_ne_bot_of_finrank_lt h
+
+theorem coareaJacobian_sq (f : E → F) (x : E) :
+    coareaJacobian f x ^ 2 =
+      ((fderiv ℝ f x).toLinearMap ∘ₗ (fderiv ℝ f x).toLinearMap.adjoint).det := by
+  simpa [coareaJacobian] using
+    LinearMap.normDet_sq (fderiv ℝ f x).toLinearMap.adjoint
+
+theorem coareaJacobian_zero (x : E) :
+    coareaJacobian (0 : E → F) x = 0 ^ Module.finrank ℝ F := by
+  rw [coareaJacobian]
+  simp [LinearMap.normDet_zero]
+
+theorem coareaJacobian_id (x : E) : coareaJacobian (id : E → E) x = 1 := by
+  rw [coareaJacobian]
+  simp
+
+end
 
 theorem linear_area_formula [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
     (L : E →ₗ[ℝ] F) (s : Set E) :

@@ -17,6 +17,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Area multiplicity Hausdorff measurability | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `Area.aemeasurable_multiplicity` in `GMT/Area/Formula.lean` | Area-layer corollary exposing the consumer multiplicity definition | implemented |
 | Area multiplicity Hausdorff estimate | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `Area.lintegral_multiplicity_le` in `GMT/Area/Formula.lean` | Area-layer integrated multiplicity bound | implemented |
 | Intrinsic Jacobian | Chapter 2, Section 3, formulas 3.2-3.3, pp. 53-54 | `Area.jacobian`, `Area.jacobianWithin` in `GMT/Area/Jacobian.lean` | rectangular `LinearMap.normDet` interface | implemented |
+| Intrinsic coarea Jacobian | Chapter 2, Section 6, formula 6.2, p. 66 | `Area.coareaJacobian` in `GMT/Area/Jacobian.lean` | adjoint `LinearMap.normDet` interface, with nonsurjective vanishing and Gram-determinant identity | implemented |
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
 | Injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula` in `GMT/Area/Formula.lean` | square-dimensional differentiable interface | implemented with equal domain/codomain |
@@ -60,7 +61,14 @@ The following load-bearing public dependencies are also part of the delivered su
 supporting API rather than additional Simon headlines: `Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
 `Area.jacobian_continuousLinearMap`, `Area.jacobian_linearMap`, `Area.jacobian_zero`,
-`Area.jacobian_id`, `Area.multiplicity_eq_zero_of_not_mem_image`,
+`Area.jacobian_id`, `LinearMap.normDet_adjoint_of_finrank_eq`,
+`Area.coareaJacobian_nonneg`, `Area.coareaJacobian_of_hasFDerivAt`,
+`Area.coareaJacobian_continuousLinearMap`, `Area.coareaJacobian_linearMap`,
+`Area.coareaJacobian_eq_jacobian_of_finrank_eq`,
+`Area.coareaJacobian_eq_zero_of_not_surjective`,
+`Area.coareaJacobian_eq_zero_of_finrank_lt`, `Area.coareaJacobian_sq`,
+`Area.coareaJacobian_zero`, `Area.coareaJacobian_id`,
+`Area.multiplicity_eq_zero_of_not_mem_image`,
 `Area.multiplicity_eq_one_of_injOn`, `Area.weightedMultiplicity`,
 `Area.weightedMultiplicity_one`, `Area.weightedMultiplicity_comp`,
 `Area.antitone_area_formula_real`, `Area.antitone_area_formula_real_unweighted`,
@@ -167,6 +175,52 @@ Area.jacobian_zero {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   Area.jacobian (0 : E → F) x = 0 ^ finrank ℝ E
 Area.jacobian_id {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] (x : E) : Area.jacobian (id : E → E) x = 1
+LinearMap.normDet_adjoint_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] (L : E →ₗ[ℝ] F)
+  (h : finrank ℝ E = finrank ℝ F) : L.adjoint.normDet = L.normDet
+Area.coareaJacobian {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] (f : E → F) (x : E) : ℝ
+Area.coareaJacobian_nonneg {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] (f : E → F) (x : E) : 0 ≤ Area.coareaJacobian f x
+Area.coareaJacobian_of_hasFDerivAt {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] {f : E → F} {L : E →L[ℝ] F} {x : E}
+  (h : HasFDerivAt f L x) : Area.coareaJacobian f x = L.toLinearMap.adjoint.normDet
+Area.coareaJacobian_continuousLinearMap {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] (L : E →L[ℝ] F) (x : E) :
+  Area.coareaJacobian L x = L.toLinearMap.adjoint.normDet
+Area.coareaJacobian_linearMap {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] (L : E →ₗ[ℝ] F) (x : E) :
+  Area.coareaJacobian L x = L.adjoint.normDet
+Area.coareaJacobian_eq_jacobian_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] (h : finrank ℝ E = finrank ℝ F)
+  (f : E → F) (x : E) : Area.coareaJacobian f x = Area.jacobian f x
+Area.coareaJacobian_eq_zero_of_not_surjective {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] {f : E → F} {L : E →L[ℝ] F}
+  {x : E} (hf : HasFDerivAt f L x) (hL : ¬ Function.Surjective L) :
+  Area.coareaJacobian f x = 0
+Area.coareaJacobian_eq_zero_of_finrank_lt {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] (h : finrank ℝ E < finrank ℝ F)
+  (f : E → F) (x : E) : Area.coareaJacobian f x = 0
+Area.coareaJacobian_sq {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] (f : E → F) (x : E) :
+  Area.coareaJacobian f x ^ 2 =
+    ((fderiv ℝ f x).toLinearMap ∘ₗ (fderiv ℝ f x).toLinearMap.adjoint).det
+Area.coareaJacobian_zero {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] (x : E) :
+  Area.coareaJacobian (0 : E → F) x = 0 ^ finrank ℝ F
+Area.coareaJacobian_id {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] (x : E) : Area.coareaJacobian (id : E → E) x = 1
 Area.linear_area_formula {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
   [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
@@ -441,6 +495,8 @@ external declaration driver checks the source-weighted multiplicity, injective, 
 countable-partition, square, equal-rank, unweighted, and explicitly image-weighted declarations. The available
 `unusedArguments`, `simpNF`, and `synTaut` linters pass for every repaired declaration, and every
 checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`.
+The intrinsic coarea-Jacobian API and the shared adjoint `normDet` theorem pass the same declaration
+linters and have the same axiom closure.
 External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
 successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a
