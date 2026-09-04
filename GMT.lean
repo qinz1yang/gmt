@@ -3,6 +3,7 @@ import GMT.Measure.Lusin
 import GMT.Analysis.Lipschitz
 import GMT.Analysis.Whitney
 import GMT.Area.Jacobian
+import GMT.Area.Submanifold
 import GMT.Area.Formula
 import GMT.Area.Coarea
 import GMT.Measure.Hausdorff

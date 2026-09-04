@@ -1,4 +1,5 @@
 import GMT.Area.Formula
+import GMT.Area.Submanifold
 import Mathlib.Analysis.Calculus.InverseFunctionTheorem.ContDiff
 import Mathlib.Analysis.InnerProductSpace.ProdL2
 import Mathlib.MeasureTheory.Measure.Prod
@@ -1083,7 +1084,7 @@ private theorem normDet_adjoint_eq_zero_iff_not_surjective (L : E →ₗ[ℝ] F)
     exact LinearMap.range_eq_top.mp (Submodule.orthogonal_eq_bot_iff.mp hbot)
 
 omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
-private theorem isClosed_not_surjective_fderiv
+theorem isClosed_critical_set
     {f : E → F} (hf : ContDiff ℝ 1 f) :
     IsClosed {x | ¬ Function.Surjective (fderiv ℝ f x)} := by
   have hcont : Continuous (fun x : E =>
@@ -1109,7 +1110,7 @@ private theorem critical_lintegral_hausdorffMeasure_fiber_eq_zero
             ∂μHE[Module.finrank ℝ F] = 0 := by
   let c : Set E := {x | ¬ Function.Surjective (fderiv ℝ f x)}
   let t : ℕ → Set E := fun n => c ∩ Metric.closedBall 0 n
-  have hcclosed : IsClosed c := isClosed_not_surjective_fderiv hf
+  have hcclosed : IsClosed c := isClosed_critical_set hf
   have htcompact : ∀ n, IsCompact (t n) := fun n =>
     IsCompact.inter_left (isCompact_closedBall (0 : E) n) hcclosed
   have htmono : Monotone t := by
@@ -1581,6 +1582,48 @@ private theorem hasFDerivAt_regularCoareaFiberParam
     (coareaVertical f a) z
   exact T.hasFDerivAt.comp z ((hasFDerivAt_const y z).prodMk (hasFDerivAt_id z))
 
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem contDiffAt_regularCoareaChartInverse
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {p : WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)}
+    (hp : p ∈ (regularCoareaChart hf a ha).target)
+    (hx : (coareaCoordinatesFDerivAt f a
+      ((regularCoareaChart hf a ha).symm p)).toLinearMap.normDet ≠ 0) :
+    ContDiffAt ℝ 1 (regularCoareaChartInverse hf a ha) p := by
+  let e := regularCoareaChart hf a ha
+  let A := coareaCoordinatesEquivAtPoint f a (e.symm p) ha hx
+  have hforward : HasFDerivAt e (A : E →L[ℝ] _) (e.symm p) := by
+    rw [show (e : E → _) = coareaCoordinatesAt f a from rfl]
+    rw [coareaCoordinatesEquivAtPoint_coe]
+    exact hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a (e.symm p)
+  have hsmooth : ContDiffAt ℝ 1 e (e.symm p) := by
+    rw [show (e : E → _) = coareaCoordinatesAt f a from rfl]
+    exact (contDiff_coareaCoordinatesAt hf a).contDiffAt
+  have hinverse : ContDiffAt ℝ 1 e.symm p := e.contDiffAt_symm hp hforward hsmooth
+  apply hinverse.congr_of_eventuallyEq
+  filter_upwards [e.open_target.mem_nhds hp] with q hq
+  simpa [e] using regularCoareaChartInverse_eq_symm hf a ha hq
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem contDiffAt_regularCoareaFiberParam
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) (y : F)
+    {z : LinearMap.ker (fderiv ℝ f a).toLinearMap}
+    (hp : WithLp.toLp 2 (y, z) ∈ (regularCoareaChart hf a ha).target)
+    (hx : (coareaCoordinatesFDerivAt f a
+      ((regularCoareaChart hf a ha).symm (WithLp.toLp 2 (y, z)))).toLinearMap.normDet ≠ 0) :
+    ContDiffAt ℝ 1 (regularCoareaFiberParam hf a ha y) z := by
+  let T := (WithLp.prodContinuousLinearEquiv 2 ℝ F
+    (LinearMap.ker (fderiv ℝ f a).toLinearMap)).symm.toContinuousLinearMap
+  have hvertical : ContDiffAt ℝ 1 (fun w : LinearMap.ker
+      (fderiv ℝ f a).toLinearMap => T (y, w)) z :=
+    (T.contDiff.comp (contDiff_const.prodMk contDiff_id)).contDiffAt
+  change ContDiffAt ℝ 1 (fun w : LinearMap.ker (fderiv ℝ f a).toLinearMap =>
+    regularCoareaChartInverse hf a ha (WithLp.toLp 2 (y, w))) z
+  apply (contDiffAt_regularCoareaChartInverse hf a ha hp hx).comp z
+  simpa [T] using hvertical
+
 private def regularCoareaFiberJacobian
     {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
     (ha : Function.Surjective (fderiv ℝ f a))
@@ -1898,6 +1941,104 @@ private theorem finrank_ker_eq_sub_of_surjective
   have hrank := L.finrank_range_add_finrank_ker
   omega
 
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+theorem isContDiffSubmanifold_regular_fiber
+    {f : E → F} (hf : ContDiff ℝ 1 f) (y : F) :
+    IsContDiffSubmanifold (Module.finrank ℝ E - Module.finrank ℝ F)
+      ({x | Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) := by
+  intro a ha
+  let K : Submodule ℝ E := LinearMap.ker (fderiv ℝ f a).toLinearMap
+  let e := regularCoareaChart hf a ha.1
+  let W : Set E := regularCoareaChartSource hf a ha.1
+  let v : K → WithLp 2 (F × K) := fun z => WithLp.toLp 2 (y, z)
+  let U : Set K := v ⁻¹' (e '' W)
+  let φ : K → E := regularCoareaFiberParam hf a ha.1 y
+  have hWopen : IsOpen W := isOpen_regularCoareaChartSource hf a ha.1
+  have hWsource : W ⊆ e.source := fun _ hx => hx.1
+  have himageopen : IsOpen (e '' W) := e.isOpen_image_of_subset_source hWopen hWsource
+  have hvcontinuous : Continuous v :=
+    (WithLp.prod_continuous_toLp 2 F K).comp (continuous_const.prodMk continuous_id)
+  have hUopen : IsOpen U := himageopen.preimage hvcontinuous
+  have hp : ∀ {z : K}, z ∈ U → v z ∈ e.target := by
+    intro z hz
+    obtain ⟨x, hxW, hxz⟩ := hz
+    exact hxz ▸ e.map_source (hWsource hxW)
+  have hreg : ∀ {z : K}, z ∈ U →
+      (coareaCoordinatesFDerivAt f a (e.symm (v z))).toLinearMap.normDet ≠ 0 := by
+    intro z hz
+    obtain ⟨x, hxW, hxz⟩ := hz
+    have heq : e.symm (v z) = x := by
+      rw [← hxz]
+      exact e.left_inv (hWsource hxW)
+    rw [heq]
+    exact hxW.2
+  refine ⟨K, finrank_ker_eq_sub_of_surjective (fderiv ℝ f a).toLinearMap ha.1,
+    U, hUopen, φ, ?_, ?_, ?_, W, hWopen, ?_, ?_⟩
+  · apply hUopen.contDiffOn_iff.2
+    intro z hz
+    exact contDiffAt_regularCoareaFiberParam hf a ha.1 y (hp hz) (hreg hz)
+  · intro z hz
+    have hparam := hasFDerivAt_regularCoareaFiberParam hf a ha.1 y (hp hz) (hreg hz)
+    rw [hparam.fderiv]
+    have hvert : Function.Injective (coareaVertical f a) := by
+      intro u w huw
+      have hsnd := congrArg WithLp.snd huw
+      simpa [coareaVertical] using hsnd
+    intro u w huw
+    apply hvert
+    apply (coareaCoordinatesEquivAtPoint f a (e.symm (v z)) ha.1 (hreg hz)).symm.injective
+    exact huw
+  · have hvembed : Topology.IsEmbedding v := by
+      exact (WithLp.prodContinuousLinearEquiv 2 ℝ F K).symm.toHomeomorph.isEmbedding.comp
+        (isEmbedding_prodMkRight y)
+    let hvmap : MapsTo v U e.target := fun _ hz => hp hz
+    have hvembed' : Topology.IsEmbedding hvmap.restrict := hvembed.restrict hvmap
+    have hcomp := e.symm.isEmbedding_restrict.comp hvembed'
+    have hcompfun :
+        (e.symm.source.domRestrict
+          (e.symm.toPartialEquiv : WithLp 2 (F × K) → E)) ∘ hvmap.restrict =
+            fun z : U => e.symm (v z) := by
+      funext z
+      rfl
+    rw [hcompfun] at hcomp
+    have hfun : U.domRestrict φ = fun z : U => e.symm (v z) := by
+      funext z
+      change regularCoareaChartInverse hf a ha.1 (v z) = e.symm (v z)
+      exact regularCoareaChartInverse_eq_symm hf a ha.1 (hp z.2)
+    rw [hfun]
+    exact hcomp
+  · exact self_mem_regularCoareaChartSource hf a ha.1
+  · ext x
+    constructor
+    · rintro ⟨z, hz, rfl⟩
+      obtain ⟨u, huW, huz⟩ := hz
+      have huSource := hWsource huW
+      have hpz : v z ∈ e.target := huz ▸ e.map_source huSource
+      have hφu : φ z = u := by
+        change regularCoareaChartInverse hf a ha.1 (v z) = u
+        rw [regularCoareaChartInverse_eq_symm hf a ha.1 hpz, ← huz]
+        exact e.left_inv huSource
+      have hfyu : f u = y := by
+        have hfst := congrArg WithLp.fst huz
+        simpa [e, v, regularCoareaChart_apply, coareaCoordinatesAt] using hfst
+      rw [hφu]
+      exact ⟨⟨surjective_fderiv_of_mem_regularCoareaChartSource hf a ha.1 huW, hfyu⟩, huW⟩
+    · rintro ⟨⟨hxreg, hfxy⟩, hxW⟩
+      let z : K := (e x).snd
+      have hex : e x = v z := by
+        apply (WithLp.equiv 2 (F × K)).injective
+        apply Prod.ext
+        · simpa [e, v, regularCoareaChart_apply, coareaCoordinatesAt] using hfxy
+        · rfl
+      have hzU : z ∈ U := by
+        change v z ∈ e '' W
+        rw [← hex]
+        exact mem_image_of_mem e hxW
+      refine ⟨z, hzU, ?_⟩
+      change regularCoareaChartInverse hf a ha.1 (v z) = x
+      rw [regularCoareaChartInverse_eq_symm hf a ha.1 (hp hzU), ← hex]
+      exact e.left_inv (hWsource hxW)
+
 private theorem regular_coarea_chart_formula_weighted_dim
     {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
     (ha : Function.Surjective (fderiv ℝ f a))
@@ -2014,7 +2155,7 @@ private theorem coarea_formula_weighted_aux
   let r : Set E := s ∩ {x | Function.Surjective (fderiv ℝ f x)}
   let c : Set E := s ∩ {x | ¬ Function.Surjective (fderiv ℝ f x)}
   have hcritclosed : IsClosed {x : E | ¬ Function.Surjective (fderiv ℝ f x)} :=
-    isClosed_not_surjective_fderiv hf
+    isClosed_critical_set hf
   have hregmeas : MeasurableSet {x : E | Function.Surjective (fderiv ℝ f x)} := by
     rw [show {x : E | Function.Surjective (fderiv ℝ f x)} =
       {x : E | ¬ Function.Surjective (fderiv ℝ f x)}ᶜ by ext x; simp]
@@ -2130,6 +2271,51 @@ theorem coarea_formula
       ∫⁻ x in s, ENNReal.ofReal (coareaJacobian f x)
         ∂μHE[Module.finrank ℝ E] := by
   simpa using coarea_formula_weighted hf hEF hs (fun _ => (1 : ℝ≥0∞)) measurable_const
+
+theorem ae_critical_fiber_measure_eq_zero
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E) :
+    ∀ᵐ y : F ∂volume,
+      μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = 0 := by
+  have hcritical := critical_lintegral_hausdorffMeasure_fiber_eq_zero hf hEF
+  have hintegral :
+      ∫⁻ y : F, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = 0 := by
+    simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using hcritical.2
+  have hraw : (fun y : F =>
+      μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) =ᵐ[volume] 0 :=
+    (lintegral_eq_zero_iff hcritical.1).mp hintegral
+  filter_upwards [hraw] with y hy
+  rw [Measure.euclideanHausdorffMeasure_apply_eq_smul]
+  rw [show μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+      ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = 0 by
+        simpa only [Pi.zero_apply] using hy, mul_zero]
+
+theorem sard_fiber_decomposition
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E) :
+    ∀ᵐ y : F ∂volume,
+      μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = 0 ∧
+        IsClosed ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) ∧
+        (({x | Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = ∅ ∨
+          IsContDiffSubmanifold (Module.finrank ℝ E - Module.finrank ℝ F)
+            ({x | Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) ∧
+        f ⁻¹' {y} =
+          ({x | Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) ∪
+            ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) := by
+  filter_upwards [ae_critical_fiber_measure_eq_zero hf hEF] with y hy
+  refine ⟨hy, (isClosed_critical_set hf).inter
+    (isClosed_singleton.preimage hf.continuous), ?_, ?_⟩
+  · by_cases hempty :
+      ({x | Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = ∅
+    · exact Or.inl hempty
+    · exact Or.inr (isContDiffSubmanifold_regular_fiber hf y)
+  · ext x
+    simp only [mem_preimage, mem_singleton_iff, mem_union, mem_inter_iff, mem_ofPred_eq]
+    tauto
 
 end LocalCoordinates
 
