@@ -163,6 +163,290 @@ theorem mul_le_euclideanHausdorffMeasure_image_of_lt_normDet
       (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity)
   exact hsame.trans (hiso.le.trans hproj)
 
+private theorem euclideanHausdorffMeasure_image_le_mul_of_normDet_lt_of_injective
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+    (A : E →L[ℝ] F) (hAinj : Function.Injective A) {c : ℝ≥0}
+    (hc : ENNReal.ofReal A.toLinearMap.normDet < (c : ℝ≥0∞)) :
+    ∀ᶠ δ in 𝓝[>] (0 : ℝ≥0),
+      ∀ (s : Set E) (f : E → F),
+        ApproximatesLinearOn f A s δ →
+          μHE[Module.finrank ℝ E] (f '' s) ≤
+            (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s := by
+  by_cases hE : Subsingleton E
+  · have hdim : Module.finrank ℝ E = 0 := Module.finrank_zero_of_subsingleton
+    have hc1 : (1 : ℝ≥0∞) ≤ c := by
+      have hnorm : A.toLinearMap.normDet = 1 := by
+        have hAz : A.toLinearMap = 0 := Subsingleton.elim _ _
+        simp [hAz]
+      simpa [hnorm] using hc.le
+    filter_upwards
+    intro δ s f hf
+    have hLip : LipschitzOnWith 1 f s := by
+      intro x hx y hy
+      simp [Subsingleton.elim x y]
+    rw [hdim, Measure.euclideanHausdorffMeasure_zero,
+      Measure.euclideanHausdorffMeasure_zero]
+    calc
+      μH[0] (f '' s) ≤ (1 : ℝ≥0∞) ^ (0 : ℝ) * μH[0] s :=
+        hLip.hausdorffMeasure_image_le le_rfl
+      _ = μH[0] s := by simp
+      _ ≤ (c : ℝ≥0∞) * μH[0] s := by
+        simpa only [one_mul] using
+          (mul_le_mul (a := (1 : ℝ≥0∞)) (b := (c : ℝ≥0∞))
+            (c := μH[0] s) (d := μH[0] s) hc1 le_rfl bot_le bot_le)
+  · have hAnormDet : A.toLinearMap.normDet ≠ 0 :=
+      LinearMap.normDet_ne_zero_tfae A.toLinearMap |>.out 1 0 |>.mp
+        (LinearMap.ker_eq_bot.mpr hAinj)
+    let V : Submodule ℝ F := LinearMap.range A.toLinearMap
+    let P : F →L[ℝ] V := V.orthogonalProjectionOnto
+    have hdim : Module.finrank ℝ E = Module.finrank ℝ V := by
+      simpa [V] using (LinearMap.finrank_range_of_inj hAinj).symm
+    let e : V ≃ₗᵢ[ℝ] E :=
+      (stdOrthonormalBasis ℝ V).equiv (stdOrthonormalBasis ℝ E) (finCongr hdim.symm)
+    let AR : E →L[ℝ] V := A.rangeRestrict
+    let B : E →L[ℝ] E := e.toContinuousLinearMap.comp AR
+    have hBnormDet : B.toLinearMap.normDet = A.toLinearMap.normDet := by
+      change (e.toLinearIsometry.toLinearMap ∘ₗ AR.toLinearMap).normDet = _
+      rw [LinearMap.normDet_comp_of_finrank_eq _ _ hdim]
+      simp [AR, e.toLinearIsometry.normDet_eq_one]
+    have hBdet : |B.det| = A.toLinearMap.normDet := by
+      rw [← LinearMap.normDet_eq_abs_det, hBnormDet]
+    have hBdetne : B.det ≠ 0 := by
+      intro h
+      apply hAnormDet
+      rw [← hBdet, h, abs_zero]
+    let b : E ≃L[ℝ] E := B.toContinuousLinearEquivOfDetNeZero hBdetne
+    have hb : (b : E →L[ℝ] E) = B := rfl
+    let N : ℝ≥0 := ‖(b.symm : E →L[ℝ] E)‖₊
+    have hN : 0 < N := b.subsingleton_or_nnnorm_symm_pos.resolve_left hE
+    have hNinv : N⁻¹ ≠ 0 := inv_ne_zero hN.ne'
+    have hcNN : Real.toNNReal A.toLinearMap.normDet < c := by
+      simpa [ENNReal.ofReal] using hc
+    obtain ⟨q, hAq, hqc⟩ : ∃ q : ℝ≥0,
+        Real.toNNReal A.toLinearMap.normDet < q ∧ q < c := exists_between hcNN
+    have hAq' : ENNReal.ofReal |B.det| < (q : ℝ≥0∞) := by
+      simpa [hBdet, ENNReal.ofReal] using hAq
+    have Hmeasure := MeasureTheory.addHaar_image_le_mul_of_det_lt
+      (volume : Measure E) B hAq'
+    let K : ℝ≥0 → ℝ≥0 := fun δ => 1 + 2 * δ * (N⁻¹ - δ)⁻¹
+    have hK : Tendsto K (𝓝 0) (𝓝 1) := by
+      have hsub : ContinuousAt (fun δ : ℝ≥0 => N⁻¹ - δ) 0 :=
+        continuousAt_const.sub continuousAt_id
+      have hinv : ContinuousAt (fun δ : ℝ≥0 => (N⁻¹ - δ)⁻¹) 0 :=
+        hsub.inv₀ (by simpa using hNinv)
+      have hcont : ContinuousAt (fun δ : ℝ≥0 => 1 + 2 * δ * (N⁻¹ - δ)⁻¹) 0 :=
+        continuousAt_const.add ((continuousAt_const.mul continuousAt_id).mul hinv)
+      simpa [K] using hcont.tendsto
+    have hfactor : Tendsto
+        (fun δ : ℝ≥0 => ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) * q)
+        (𝓝 0) (𝓝 q) := by
+      have hKcoe : Tendsto (fun δ : ℝ≥0 => (K δ : ℝ≥0∞)) (𝓝 0) (𝓝 1) :=
+        ENNReal.continuous_coe.tendsto 1 |>.comp hK
+      have hp : Tendsto
+          (fun z : ℝ≥0∞ => z ^ (Module.finrank ℝ E : ℝ)) (𝓝 1) (𝓝 1) := by
+        simpa using
+          (ENNReal.continuous_rpow_const
+            (y := (Module.finrank ℝ E : ℝ))).tendsto (1 : ℝ≥0∞)
+      simpa using ENNReal.Tendsto.mul_const (hp.comp hKcoe)
+        (Or.inr ENNReal.coe_ne_top)
+    have Hfactor : ∀ᶠ δ : ℝ≥0 in 𝓝 0,
+        ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) * q ≤ c :=
+      ((tendsto_order.1 hfactor).2 (c : ℝ≥0∞) (by exact_mod_cast hqc)).mono
+        fun _ h => h.le
+    have Hsmall : Iio N⁻¹ ∈ 𝓝 (0 : ℝ≥0) := Iio_mem_nhds hNinv.bot_lt
+    have Hsmall' : Iio N⁻¹ ∈ 𝓝[>] (0 : ℝ≥0) := nhdsWithin_le_nhds Hsmall
+    have Hfactor' : ∀ᶠ δ : ℝ≥0 in 𝓝[>] 0,
+        ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) * q ≤ c :=
+      Hfactor.filter_mono nhdsWithin_le_nhds
+    filter_upwards [Hmeasure, Hfactor', Hsmall'] with δ hmeasure hfactorδ hδ
+    intro s f hf
+    let h : E → E := fun x => e (P (f x))
+    have hPA : P.comp A = AR := by
+      ext x
+      exact V.starProjection_eq_self_iff.mpr ⟨x, rfl⟩
+    have hh : ApproximatesLinearOn h B s δ := by
+      intro x hx y hy
+      calc
+        ‖h x - h y - B (x - y)‖ =
+            ‖P (f x - f y - A (x - y))‖ := by
+              rw [← e.norm_map]
+              simp only [map_sub, h, B, ContinuousLinearMap.comp_apply]
+              rw [← hPA]
+              rfl
+        _ ≤ ‖f x - f y - A (x - y)‖ :=
+          V.norm_orthogonalProjectionOnto_apply_le _
+        _ ≤ δ * ‖x - y‖ := hf x hx y hy
+    have hh' : ApproximatesLinearOn h (b : E →L[ℝ] E) s δ := by
+      simpa [hb] using hh
+    have hδ' : δ < N⁻¹ := by simpa using hδ
+    have hhinj : InjOn h s := hh'.injOn (Or.inr hδ')
+    let inv : E → E := Function.invFunOn h s
+    let φ : E → F := fun z => f (inv z)
+    have hinv : ∀ x ∈ s, inv (h x) = x := hhinj.leftInvOn_invFunOn
+    have hφ : LipschitzOnWith (K δ) φ (h '' s) := by
+      rw [lipschitzOnWith_iff_norm_sub_le]
+      intro z hz w hw
+      obtain ⟨x, hx, rfl⟩ := hz
+      obtain ⟨y, hy, rfl⟩ := hw
+      rw [show φ (h x) = f x by simp [φ, hinv x hx],
+        show φ (h y) = f y by simp [φ, hinv y hy]]
+      have hxy : ‖x - y‖ ≤ ((N⁻¹ - δ)⁻¹ : ℝ≥0) * ‖h x - h y‖ := by
+        rw [← dist_eq_norm, ← dist_eq_norm]
+        exact (hh'.antilipschitz (Or.inr hδ')).le_mul_dist ⟨x, hx⟩ ⟨y, hy⟩
+      have hAB : ‖A (x - y)‖ = ‖B (x - y)‖ := by
+        change ‖A (x - y)‖ = ‖e (AR (x - y))‖
+        rw [e.norm_map]
+        rfl
+      calc
+        ‖f x - f y‖ ≤ ‖A (x - y)‖ + ‖f x - f y - A (x - y)‖ := by
+          nth_rw 1 [show f x - f y = A (x - y) + (f x - f y - A (x - y)) by abel]
+          exact norm_add_le _ _
+        _ ≤ ‖B (x - y)‖ + δ * ‖x - y‖ := by
+          rw [hAB]
+          exact add_le_add le_rfl (hf x hx y hy)
+        _ ≤ (‖h x - h y‖ + δ * ‖x - y‖) + δ * ‖x - y‖ := by
+          have hBbound : ‖B (x - y)‖ ≤ ‖h x - h y‖ + δ * ‖x - y‖ := by
+            nth_rw 1 [show B (x - y) =
+              h x - h y - (h x - h y - B (x - y)) by abel]
+            calc
+              ‖h x - h y - (h x - h y - B (x - y))‖ ≤
+                  ‖h x - h y‖ + ‖h x - h y - B (x - y)‖ := norm_sub_le _ _
+              _ ≤ ‖h x - h y‖ + δ * ‖x - y‖ :=
+                add_le_add le_rfl (hh x hx y hy)
+          exact add_le_add hBbound le_rfl
+        _ ≤ (K δ : ℝ≥0) * ‖h x - h y‖ := by
+          rw [show K δ = 1 + 2 * δ * (N⁻¹ - δ)⁻¹ by rfl]
+          push_cast
+          calc
+            (‖h x - h y‖ + δ * ‖x - y‖) + δ * ‖x - y‖ =
+                ‖h x - h y‖ + 2 * δ * ‖x - y‖ := by ring
+            _ ≤ ‖h x - h y‖ + 2 * δ *
+                (((N⁻¹ - δ)⁻¹ : ℝ≥0) * ‖h x - h y‖) := by gcongr
+            _ = (1 + 2 * δ * (N⁻¹ - δ)⁻¹) * ‖h x - h y‖ := by
+              push_cast
+              ring
+    have himage : f '' s = φ '' (h '' s) := by
+      ext z
+      constructor
+      · rintro ⟨x, hx, rfl⟩
+        exact ⟨h x, ⟨x, hx, rfl⟩, by simp [φ, hinv x hx]⟩
+      · rintro ⟨z, ⟨x, hx, rfl⟩, rfl⟩
+        exact ⟨x, hx, by simp [φ, hinv x hx]⟩
+    have hφmeasure : μHE[Module.finrank ℝ E] (f '' s) ≤
+        ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) *
+          μHE[Module.finrank ℝ E] (h '' s) := by
+      rw [himage, Measure.euclideanHausdorffMeasure_apply_eq_smul,
+        Measure.euclideanHausdorffMeasure_apply_eq_smul]
+      calc
+        _ ≤ Measure.addHaarScalarFactor
+              (volume : Measure (EuclideanSpace ℝ (Fin (Module.finrank ℝ E))))
+              μH[Module.finrank ℝ E] *
+            (((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) *
+              μH[(Module.finrank ℝ E : ℝ)] (h '' s)) := by
+          gcongr
+          exact hφ.hausdorffMeasure_image_le
+            (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity)
+        _ = _ := by ring
+    have hhmeasure : μHE[Module.finrank ℝ E] (h '' s) ≤
+        (q : ℝ≥0∞) * μHE[Module.finrank ℝ E] s := by
+      rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+      exact hmeasure s h hh
+    calc
+      μHE[Module.finrank ℝ E] (f '' s) ≤
+          ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) *
+            μHE[Module.finrank ℝ E] (h '' s) := hφmeasure
+      _ ≤ ((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) *
+            ((q : ℝ≥0∞) * μHE[Module.finrank ℝ E] s) := by gcongr
+      _ = (((K δ : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ)) * q) *
+            μHE[Module.finrank ℝ E] s := by ring
+      _ ≤ (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s := by gcongr
+
+theorem euclideanHausdorffMeasure_image_le_mul_of_normDet_lt
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+    [MeasurableSpace F] [BorelSpace F]
+    (A : E →L[ℝ] F) {c : ℝ≥0}
+    (hc : ENNReal.ofReal A.toLinearMap.normDet < (c : ℝ≥0∞)) :
+    ∀ᶠ δ in 𝓝[>] (0 : ℝ≥0),
+      ∀ (s : Set E) (f : E → F),
+        ApproximatesLinearOn f A s δ →
+          μHE[Module.finrank ℝ E] (f '' s) ≤
+            (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s := by
+  by_cases hAinj : Function.Injective A
+  · exact euclideanHausdorffMeasure_image_le_mul_of_normDet_lt_of_injective
+      A hAinj hc
+  · have hAnormDet : A.toLinearMap.normDet = 0 := by
+      rw [LinearMap.normDet_eq_zero_iff_ker_ne_bot]
+      intro hker
+      exact hAinj (LinearMap.ker_eq_bot.mp hker)
+    let i : F × E →L[ℝ] WithLp 2 (F × E) :=
+      (WithLp.prodContinuousLinearEquiv 2 ℝ F E).symm
+    let aug : ℝ≥0 → E →L[ℝ] WithLp 2 (F × E) := fun η =>
+      i.comp (A.prod ((η : ℝ) • ContinuousLinearMap.id ℝ E))
+    have haug : Continuous aug := by
+      dsimp [aug]
+      apply Continuous.const_clm_comp
+      change Continuous (fun η : ℝ≥0 => (ContinuousLinearMap.prodₗᵢ ℝ)
+        (A, (η : ℝ) • ContinuousLinearMap.id ℝ E))
+      exact (ContinuousLinearMap.prodₗᵢ ℝ).continuous.comp
+        (continuous_const.prodMk (NNReal.continuous_coe.smul continuous_const))
+    have hnormaug : Continuous (fun η =>
+        ENNReal.ofReal (aug η).toLinearMap.normDet) :=
+      ENNReal.continuous_ofReal.comp
+        (ContinuousLinearMap.continuous_normDet.comp haug)
+    have haug0inj : ¬Function.Injective (aug 0) := by
+      intro h
+      apply hAinj
+      intro x y hxy
+      apply sub_eq_zero.mp
+      apply h
+      simp [aug, i, hxy]
+    have haug0 : (aug 0).toLinearMap.normDet = 0 := by
+      rw [LinearMap.normDet_eq_zero_iff_ker_ne_bot]
+      intro hker
+      exact haug0inj (LinearMap.ker_eq_bot.mp hker)
+    have hc0 : (0 : ℝ≥0∞) < c := by simpa [hAnormDet] using hc
+    have Haug : ∀ᶠ η : ℝ≥0 in 𝓝 0,
+        ENNReal.ofReal (aug η).toLinearMap.normDet < c :=
+      hnormaug.continuousAt.eventually_lt continuousAt_const (by
+        simpa [haug0] using hc0)
+    have Haug' : ∀ᶠ η : ℝ≥0 in 𝓝[>] 0,
+        ENNReal.ofReal (aug η).toLinearMap.normDet < c :=
+      Haug.filter_mono nhdsWithin_le_nhds
+    obtain ⟨η, hηc, hηpos⟩ := (Haug'.and self_mem_nhdsWithin).exists
+    have hη : (0 : ℝ≥0) < η := by simpa using hηpos
+    have hauginj : Function.Injective (aug η) := by
+      intro x y hxy
+      have hsnd := congrArg (fun z : WithLp 2 (F × E) => z.snd) hxy
+      have hηreal : (0 : ℝ) < η := by exact_mod_cast hη
+      simpa [aug, i, hηreal.ne'] using hsnd
+    have H := euclideanHausdorffMeasure_image_le_mul_of_normDet_lt_of_injective
+      (aug η) hauginj hηc
+    filter_upwards [H] with δ hδ
+    intro s f hf
+    let faug : E → WithLp 2 (F × E) := fun x => WithLp.toLp 2 (f x, (η : ℝ) • x)
+    have hfaug : ApproximatesLinearOn faug (aug η) s δ := by
+      intro x hx y hy
+      simpa [faug, aug, i, map_sub, ← WithLp.toLp_sub] using hf x hx y hy
+    have hmain : μHE[Module.finrank ℝ E] (faug '' s) ≤
+        (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s := hδ s faug hfaug
+    have hfst : LipschitzWith 1 (fun z : WithLp 2 (F × E) => z.fst) := by
+      intro x y
+      simpa only [ENNReal.coe_one, one_mul] using WithLp.edist_fst_le x y
+    have himage : (fun z : WithLp 2 (F × E) => z.fst) '' (faug '' s) = f '' s := by
+      simp [faug, image_image]
+    have hproj : μHE[Module.finrank ℝ E] (f '' s) ≤
+        μHE[Module.finrank ℝ E] (faug '' s) := by
+      rw [← himage, Measure.euclideanHausdorffMeasure_apply_eq_smul,
+        Measure.euclideanHausdorffMeasure_apply_eq_smul]
+      gcongr
+      simpa using hfst.hausdorffMeasure_image_le
+        (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity) (faug '' s)
+    exact hproj.trans hmain
+
 variable {E : Type*}
   [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
   [MeasurableSpace E] [BorelSpace E]
