@@ -720,6 +720,218 @@ theorem linear_coarea_factor_sq
     L.adjoint.normDet ^ 2 = (L ∘ₗ L.adjoint).det := by
   simpa using LinearMap.normDet_sq L.adjoint
 
+private def orthogonalStretch (V : Submodule ℝ F) (c : ℝ) : F →ₗ[ℝ] F :=
+  V.orthogonalDecomposition.symm.toLinearMap ∘ₗ
+    (((LinearMap.id (R := ℝ) (M := V)).prodMap
+      (c • LinearMap.id (R := ℝ) (M := Vᗮ))).withLpMap 2) ∘ₗ
+        V.orthogonalDecomposition.toLinearMap
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem orthogonalStretch_apply (V : Submodule ℝ F) (c : ℝ) (x : F) :
+    orthogonalStretch V c x =
+      (V.orthogonalProjectionOnto x : F) +
+        c • (Vᗮ.orthogonalProjectionOnto x : F) := by
+  simp [orthogonalStretch, Submodule.orthogonalDecomposition_apply]
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem orthogonalStretch_apply_of_mem (V : Submodule ℝ F) (c : ℝ)
+    {x : F} (hx : x ∈ V) : orthogonalStretch V c x = x := by
+  rw [orthogonalStretch_apply]
+  have hV : (V.orthogonalProjectionOnto x : F) = x := by
+    simpa using congrArg Subtype.val
+      (V.orthogonalProjectionOnto_mem_subspace_eq_self ⟨x, hx⟩)
+  have hVo : (Vᗮ.orthogonalProjectionOnto x : F) = 0 := by
+    exact congrArg Subtype.val
+      (Vᗮ.orthogonalProjectionOnto_apply_of_mem_orthogonal
+        (V.le_orthogonal_orthogonal hx))
+  rw [hV, hVo, smul_zero, add_zero]
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem orthogonalStretch_norm_le (V : Submodule ℝ F) {c : ℝ}
+    (hc : 1 ≤ c) (x : F) : ‖orthogonalStretch V c x‖ ≤ c * ‖x‖ := by
+  rw [orthogonalStretch_apply]
+  have horth : @inner ℝ F _ (V.orthogonalProjectionOnto x : F)
+      (c • (Vᗮ.orthogonalProjectionOnto x : F)) = 0 := by
+    rw [inner_smul_right]
+    simp only [mul_eq_zero]
+    right
+    exact (V.mem_orthogonal _).1 (Vᗮ.orthogonalProjectionOnto x).2 _
+      (V.orthogonalProjectionOnto x).2
+  have hsum : ‖(V.orthogonalProjectionOnto x : F) +
+      c • (Vᗮ.orthogonalProjectionOnto x : F)‖ ^ 2 =
+        ‖(V.orthogonalProjectionOnto x : F)‖ ^ 2 +
+          ‖c • (Vᗮ.orthogonalProjectionOnto x : F)‖ ^ 2 := by
+    simpa only [sq] using
+      norm_add_sq_eq_norm_sq_add_norm_sq_of_inner_eq_zero _ _ horth
+  have hxsum : ‖x‖ ^ 2 = ‖(V.orthogonalProjectionOnto x : F)‖ ^ 2 +
+      ‖(Vᗮ.orthogonalProjectionOnto x : F)‖ ^ 2 :=
+    V.norm_sq_eq_add_norm_sq_projection x
+  rw [← sq_le_sq₀ (norm_nonneg _) (mul_nonneg (zero_le_one.trans hc) (norm_nonneg _)),
+    hsum, norm_smul,
+    Real.norm_eq_abs, abs_of_nonneg (zero_le_one.trans hc), mul_pow]
+  nlinarith [hxsum, sq_nonneg ‖(V.orthogonalProjectionOnto x : F)‖,
+    mul_self_le_mul_self (show (0 : ℝ) ≤ 1 by positivity) hc]
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem orthogonalStretch_normDet (V : Submodule ℝ F) (c : ℝ) :
+    (orthogonalStretch V c).normDet = |c| ^ Module.finrank ℝ Vᗮ := by
+  let D : F →ₗ[ℝ] WithLp 2 (V × Vᗮ) := V.orthogonalDecomposition.toLinearMap
+  let B : WithLp 2 (V × Vᗮ) →ₗ[ℝ] WithLp 2 (V × Vᗮ) :=
+    ((LinearMap.id (R := ℝ) (M := V)).prodMap
+      (c • LinearMap.id (R := ℝ) (M := Vᗮ))).withLpMap 2
+  have hdim : Module.finrank ℝ F = Module.finrank ℝ (WithLp 2 (V × Vᗮ)) :=
+    V.orthogonalDecomposition.toLinearEquiv.finrank_eq
+  rw [show orthogonalStretch V c =
+      V.orthogonalDecomposition.symm.toLinearMap ∘ₗ (B ∘ₗ D) from rfl,
+    LinearMap.normDet_comp_of_finrank_eq (B ∘ₗ D)
+      V.orthogonalDecomposition.symm.toLinearMap hdim,
+    LinearMap.normDet_comp_of_finrank_eq D B hdim]
+  rw [show V.orthogonalDecomposition.symm.toLinearMap.normDet = 1 from
+    V.orthogonalDecomposition.symm.toLinearIsometry.normDet_eq_one,
+    show D.normDet = 1 from V.orthogonalDecomposition.toLinearIsometry.normDet_eq_one,
+    one_mul, mul_one]
+  rw [show B.normDet =
+      (LinearMap.id (R := ℝ) (M := V)).normDet *
+        (c • LinearMap.id (R := ℝ) (M := Vᗮ)).normDet by
+    exact normDet_withLp_prodMap _ _ rfl rfl]
+  simp [LinearMap.normDet_smul, Real.norm_eq_abs]
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem orthogonalStretch_bijective (V : Submodule ℝ F) {c : ℝ} (hc : c ≠ 0) :
+    Function.Bijective (orthogonalStretch V c) := by
+  have hdet : (orthogonalStretch V c).normDet ≠ 0 := by
+    rw [orthogonalStretch_normDet]
+    positivity
+  have hinj : Function.Injective (orthogonalStretch V c) :=
+    LinearMap.normDet_ne_zero_tfae (orthogonalStretch V c) |>.out 0 4 |>.mp hdet
+  exact ⟨hinj,
+    (LinearMap.injective_iff_surjective_of_finrank_eq_finrank (by rfl)).mp hinj⟩
+
+omit [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem ApproximatesLinearOn.lipschitzOnWith_orthogonalStretch_comp
+    {f : E → F} {A : E →L[ℝ] F} {s : Set E} {δ M : ℝ≥0} {c : ℝ}
+    (hf : ApproximatesLinearOn f A s δ) (hc : 1 ≤ c)
+    (hcδ : c * δ ≤ 1) (hA : ‖A‖₊ ≤ M) :
+    LipschitzOnWith (M + 1) (orthogonalStretch (LinearMap.range A.toLinearMap) c ∘ f) s := by
+  simpa only [Real.toNNReal_coe] using LipschitzOnWith.of_dist_le'
+    (K := ((M + 1 : ℝ≥0) : ℝ)) (fun x hx y hy => by
+      simp only [dist_eq_norm]
+      let e : F := f x - f y - A (x - y)
+      have hdecomp : f x - f y = A (x - y) + e := by
+        dsimp only [e]
+        abel
+      have he : ‖e‖ ≤ (δ : ℝ) * ‖x - y‖ := hf x hx y hy
+      have hfix : orthogonalStretch (LinearMap.range A.toLinearMap) c (A (x - y)) =
+          A (x - y) := by
+        apply orthogonalStretch_apply_of_mem
+        exact ⟨x - y, rfl⟩
+      have herr : ‖orthogonalStretch (LinearMap.range A.toLinearMap) c e‖ ≤
+          ‖x - y‖ := by
+        calc
+          ‖orthogonalStretch (LinearMap.range A.toLinearMap) c e‖ ≤ c * ‖e‖ :=
+            orthogonalStretch_norm_le _ hc e
+          _ ≤ c * ((δ : ℝ) * ‖x - y‖) :=
+            mul_le_mul_of_nonneg_left he (zero_le_one.trans hc)
+          _ = (c * (δ : ℝ)) * ‖x - y‖ := by ring
+          _ ≤ 1 * ‖x - y‖ :=
+            mul_le_mul_of_nonneg_right hcδ (norm_nonneg _)
+          _ = ‖x - y‖ := one_mul _
+      change ‖orthogonalStretch (LinearMap.range A.toLinearMap) c (f x) -
+          orthogonalStretch (LinearMap.range A.toLinearMap) c (f y)‖ ≤ _
+      rw [← map_sub, hdecomp, map_add, hfix]
+      calc
+        ‖A (x - y) + orthogonalStretch (LinearMap.range A.toLinearMap) c e‖ ≤
+            ‖A (x - y)‖ +
+              ‖orthogonalStretch (LinearMap.range A.toLinearMap) c e‖ := norm_add_le _ _
+        _ ≤ ‖A‖ * ‖x - y‖ + ‖x - y‖ := add_le_add (A.le_opNorm _) herr
+        _ ≤ (M : ℝ) * ‖x - y‖ + 1 * ‖x - y‖ :=
+          add_le_add
+            (mul_le_mul_of_nonneg_right (by exact_mod_cast hA) (norm_nonneg _)) (by simp)
+        _ = ((M + 1 : ℝ≥0) : ℝ) * ‖x - y‖ := by
+          push_cast
+          ring)
+
+omit [FiniteDimensional ℝ E] in
+private theorem ApproximatesLinearOn.exists_measurable_hausdorffMeasure_fiber_majorant_of_not_surjective
+    {f : E → F} {A : E →L[ℝ] F} {s : Set E} {δ M c : ℝ≥0}
+    (hf : ApproximatesLinearOn f A s δ) (hc : 1 ≤ c)
+    (hcδ : c * δ ≤ 1) (hA : ‖A‖₊ ≤ M) (hAsurj : ¬ Function.Surjective A)
+    {k : ℝ} (hk : 0 < k) (hfin : μH[k + Module.finrank ℝ F] s ≠ ∞) :
+    ∃ q : F → ℝ≥0∞, Measurable q ∧
+      (∀ y, μH[k] (s ∩ f ⁻¹' {y}) ≤ q y) ∧
+        ∫⁻ y : F, q y ∂μHE[Module.finrank ℝ F] ≤
+          (c : ℝ≥0∞)⁻¹ *
+            ((M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1) *
+                μH[k + Module.finrank ℝ F] s) := by
+  let V : Submodule ℝ F := LinearMap.range A.toLinearMap
+  let S : F →ₗ[ℝ] F := orthogonalStretch V c
+  have hSlip : LipschitzOnWith (M + 1) (S ∘ f) s := by
+    exact ApproximatesLinearOn.lipschitzOnWith_orthogonalStretch_comp hf hc hcδ hA
+  obtain ⟨q, hqmeas, hqmajor, hqintegral⟩ :=
+    hSlip.exists_measurable_hausdorffMeasure_fiber_majorant hk hfin
+  have hSbij : Function.Bijective S := orthogonalStretch_bijective V (by positivity)
+  have hSmeas : Measurable S := S.continuous_of_finiteDimensional.measurable
+  have hfiber : ∀ y : F, s ∩ (S ∘ f) ⁻¹' {S y} = s ∩ f ⁻¹' {y} := by
+    intro y
+    ext x
+    simp only [mem_inter_iff, mem_preimage, mem_singleton_iff, Function.comp_apply]
+    exact and_congr_right fun _ => hSbij.1.eq_iff
+  have hVproper : V < ⊤ := by
+    rw [lt_top_iff_ne_top]
+    exact fun hV => hAsurj (LinearMap.range_eq_top.mp hV)
+  have hcodim : 0 < Module.finrank ℝ Vᗮ := by
+    have hVrank : Module.finrank ℝ V < Module.finrank ℝ F :=
+      by simpa only [finrank_top] using Submodule.finrank_lt_finrank_of_lt hVproper
+    have hsum := V.finrank_add_finrank_orthogonal
+    omega
+  have hdet : ENNReal.ofReal S.normDet =
+      (c : ℝ≥0∞) ^ Module.finrank ℝ Vᗮ := by
+    rw [show S.normDet = (c : ℝ) ^ Module.finrank ℝ Vᗮ by
+      simpa [S, V, abs_of_nonneg c.coe_nonneg] using orthogonalStretch_normDet V (c : ℝ)]
+    rw [ENNReal.ofReal_pow c.coe_nonneg]
+    simp
+  have hcdet : (c : ℝ≥0∞) ≤ ENNReal.ofReal S.normDet := by
+    rw [hdet]
+    obtain ⟨r, hr⟩ := Nat.exists_eq_succ_of_ne_zero hcodim.ne'
+    rw [hr, pow_succ]
+    exact le_mul_of_one_le_left (show (0 : ℝ≥0∞) ≤ c by positivity)
+      (one_le_pow₀ (show (1 : ℝ≥0∞) ≤ (c : ℝ≥0∞) by exact_mod_cast hc))
+  let Q : F → ℝ≥0∞ := q ∘ S
+  refine ⟨Q, hqmeas.comp hSmeas, ?_, ?_⟩
+  · intro y
+    dsimp only [Q, Function.comp_apply]
+    rw [← hfiber y]
+    exact hqmajor (S y)
+  · let e : F ≃L[ℝ] F :=
+      (LinearEquiv.ofBijective S hSbij).toContinuousLinearEquiv
+    have hmap : ∫⁻ a : F, q a ∂Measure.map S volume =
+        ∫⁻ a : F, q (S a) ∂volume := by
+      change ∫⁻ a : F, q a ∂Measure.map (e : F → F) volume =
+        ∫⁻ a : F, q (e a) ∂volume
+      exact e.toHomeomorph.measurableEmbedding.lintegral_map
+        (μ := (volume : Measure F)) q
+    rw [map_volume_linear_equiv S hSbij, lintegral_smul_measure] at hmap
+    rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume,
+      show (∫⁻ y : F, Q y) =
+        (ENNReal.ofReal S.normDet)⁻¹ * ∫⁻ y : F, q y by
+          simpa only [Q, Function.comp_apply, ENNReal.smul_def, smul_eq_mul] using hmap.symm]
+    calc
+      (ENNReal.ofReal S.normDet)⁻¹ * ∫⁻ y : F, q y ≤
+          (ENNReal.ofReal S.normDet)⁻¹ *
+            ((M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1) *
+                μH[k + Module.finrank ℝ F] s) := by
+        apply mul_right_mono
+        simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume,
+          ENNReal.coe_add, ENNReal.coe_one] using hqintegral
+      _ ≤ (c : ℝ≥0∞)⁻¹ *
+            ((M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1) *
+                μH[k + Module.finrank ℝ F] s) := by
+        gcongr
+
 omit [FiniteDimensional ℝ F] [MeasurableSpace E] in
 theorem dimension_lowering_image_null
     {f : E → F} (hf : ContDiff ℝ 1 f)

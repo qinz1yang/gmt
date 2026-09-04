@@ -2,6 +2,7 @@ import Mathlib.MeasureTheory.Measure.Hausdorff
 import Mathlib.MeasureTheory.Measure.LevyProkhorovMetric
 import Mathlib.MeasureTheory.Measure.Regular
 import Mathlib.Geometry.Euclidean.Volume.Measure
+import Mathlib.MeasureTheory.Measure.Lebesgue.VolumeOfBalls
 import Mathlib.Topology.Compactness.SigmaCompact
 import Mathlib.Topology.MetricSpace.Infsep
 
@@ -188,6 +189,15 @@ private theorem antitone_hausdorffContent
   refine le_iInf fun t => le_iInf fun htcover => le_iInf fun htdiam => ?_
   exact iInf₂_le_of_le t htcover (iInf_le_of_le (fun n => (htdiam n).trans hrr') le_rfl)
 
+private theorem antitone_openHausdorffContent
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (a : Set X) :
+    Antitone (fun r => openHausdorffContent d r a) := by
+  intro r r' hrr'
+  unfold openHausdorffContent
+  refine le_iInf fun t => le_iInf fun htopen => le_iInf fun htdiam => le_iInf fun htcover => ?_
+  exact iInf₂_le_of_le t htopen
+    (iInf₂_le_of_le (fun n => (htdiam n).trans hrr') htcover le_rfl)
+
 private theorem hausdorffMeasure_eq_iSup_hausdorffContent
     {X : Type*} [MetricSpace X] [MeasurableSpace X] [BorelSpace X]
     (d : ℝ) (a : Set X) :
@@ -228,6 +238,373 @@ theorem ContinuousOn.measurable_hausdorffMeasure_fiber
     Measurable (fun y => μH[d] (s ∩ f ⁻¹' {y})) := by
   simp_rw [hausdorffMeasure_eq_iSup_openHausdorffContent hd]
   exact Measurable.iSup fun n => measurable_openHausdorffContent_fiber hs hf d _
+
+private theorem innerProductSpace_volume_le_ediam_pow
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+    (s : Set E) :
+    volume s ≤ Metric.ediam s ^ Module.finrank ℝ E *
+      volume (Metric.closedBall (0 : E) 1) := by
+  rcases eq_empty_or_nonempty s with rfl | hs
+  · simp
+  obtain ⟨x, hx⟩ := hs
+  by_cases hdiam : Metric.ediam s = ∞
+  · rw [hdiam]
+    by_cases hdim : Module.finrank ℝ E = 0
+    · have hsubsingleton : Subsingleton E := Module.finrank_zero_iff.mp hdim
+      have hsuniv : s = univ := Set.eq_univ_iff_forall.2 fun y => by
+        rw [hsubsingleton.elim y x]
+        exact hx
+      have hball : Metric.closedBall (0 : E) 1 = univ := by
+        ext y
+        simp [hsubsingleton.elim y 0]
+      simp [hsuniv, hball, hdim]
+    · simp [hdim, (Metric.measure_closedBall_pos volume (0 : E) zero_lt_one).ne']
+  have hsub : s ⊆ Metric.closedBall x (Metric.ediam s).toReal := by
+    intro y hy
+    rw [Metric.mem_closedBall]
+    exact Metric.dist_le_diam_of_mem' hdiam hy hx
+  calc
+    volume s ≤ volume (Metric.closedBall x (Metric.ediam s).toReal) :=
+      measure_mono hsub
+    _ = ENNReal.ofReal ((Metric.ediam s).toReal) ^ Module.finrank ℝ E *
+        volume (Metric.closedBall (0 : E) 1) := by
+      rw [Measure.addHaar_closedBall' volume x (ENNReal.toReal_nonneg)]
+      rw [ENNReal.ofReal_pow (ENNReal.toReal_nonneg)]
+    _ = Metric.ediam s ^ Module.finrank ℝ E *
+        volume (Metric.closedBall (0 : E) 1) := by
+      rw [ENNReal.ofReal_toReal hdiam]
+
+private theorem lintegral_openHausdorffContent_fiber_le
+    {E F : Type*} [MetricSpace E] [MeasurableSpace E] [BorelSpace E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {s : Set E} {K : ℝ≥0} (hf : LipschitzOnWith K f s)
+    (hK : K ≠ 0) {k : ℝ} (hk : 0 < k) (r : ℝ≥0∞)
+    (hr : r ≠ ∞) :
+    ∫⁻ y : F, openHausdorffContent k r (s ∩ f ⁻¹' {y})
+        ∂μHE[Module.finrank ℝ F] ≤
+      (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        volume (Metric.closedBall (0 : F) 1) *
+          openHausdorffContent (k + Module.finrank ℝ F) r s := by
+  classical
+  let C : ℝ≥0∞ := (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+    volume (Metric.closedBall (0 : F) 1)
+  have hC0 : C ≠ 0 := by
+    simp [C, hK, (Metric.measure_closedBall_pos volume (0 : F) zero_lt_one).ne']
+  have hCtop : C ≠ ∞ := by
+    apply ENNReal.mul_ne_top
+    · simp
+    · exact measure_closedBall_lt_top.ne
+  change (∫⁻ y : F, openHausdorffContent k r (s ∩ f ⁻¹' {y})
+      ∂μHE[Module.finrank ℝ F]) ≤ C * openHausdorffContent
+        (k + Module.finrank ℝ F) r s
+  unfold openHausdorffContent
+  simp only [ENNReal.mul_iInf_of_ne hC0 hCtop]
+  refine le_iInf fun t => le_iInf fun htopen => le_iInf fun htdiam => le_iInf fun htcover => ?_
+  let a : ℕ → Set F := fun j => closure (f '' (s ∩ t j))
+  have hameas : ∀ j, MeasurableSet (a j) := fun _ => isClosed_closure.measurableSet
+  let q : F → ℝ≥0∞ := fun y =>
+    ∑' j, (a j).indicator (fun _ => Metric.ediam (t j) ^ k) y
+  have hqmeas : Measurable q := Measurable.tsum fun j =>
+    measurable_const.indicator (hameas j)
+  have hpoint : ∀ y : F,
+      openHausdorffContent k r (s ∩ f ⁻¹' {y}) ≤ q y := by
+    intro y
+    let u : ℕ → Set E := fun j => if y ∈ a j then t j else ∅
+    have huopen : ∀ j, IsOpen (u j) := by
+      intro j
+      by_cases hj : y ∈ a j <;> simp [u, hj, htopen j]
+    have hudiam : ∀ j, Metric.ediam (u j) ≤ r := by
+      intro j
+      by_cases hj : y ∈ a j
+      · simpa [u, hj] using htdiam j
+      · simp [u, hj]
+    have hucover : s ∩ f ⁻¹' {y} ⊆ ⋃ j, u j := by
+      intro x hx
+      obtain ⟨j, hxj⟩ := mem_iUnion.1 (htcover hx.1)
+      apply mem_iUnion.2
+      refine ⟨j, ?_⟩
+      have hyj : y ∈ a j := by
+        apply subset_closure
+        exact ⟨x, ⟨hx.1, hxj⟩, by simpa using hx.2⟩
+      simpa [u, hyj] using hxj
+    refine (iInf₂_le_of_le u huopen
+      (iInf₂_le_of_le hudiam hucover le_rfl)).trans ?_
+    apply ENNReal.tsum_le_tsum
+    intro j
+    by_cases hj : y ∈ a j
+    · have htjne : (t j).Nonempty := by
+        have himage : (f '' (s ∩ t j)).Nonempty :=
+          Set.Nonempty.of_closure ⟨y, hj⟩
+        obtain ⟨z, hz⟩ := himage
+        obtain ⟨x, hx, -⟩ := hz
+        exact ⟨x, hx.2⟩
+      simp [u, hj, htjne]
+    · simp [u, hj]
+  calc
+    (∫⁻ y : F, openHausdorffContent k r (s ∩ f ⁻¹' {y})
+        ∂μHE[Module.finrank ℝ F]) ≤ ∫⁻ y : F, q y
+          ∂μHE[Module.finrank ℝ F] := lintegral_mono hpoint
+    _ = ∑' j, μHE[Module.finrank ℝ F] (a j) * Metric.ediam (t j) ^ k := by
+      rw [show q = fun y => ∑' j,
+          (a j).indicator (fun _ => Metric.ediam (t j) ^ k) y from rfl]
+      rw [MeasureTheory.lintegral_tsum fun j =>
+        (measurable_const.indicator (hameas j)).aemeasurable]
+      apply tsum_congr
+      intro j
+      rw [MeasureTheory.lintegral_indicator (hameas j)]
+      simp [mul_comm]
+    _ ≤ ∑' j, C * Metric.ediam (t j) ^ (k + Module.finrank ℝ F) := by
+      apply ENNReal.tsum_le_tsum
+      intro j
+      have himage : Metric.ediam (a j) ≤
+          (K : ℝ≥0∞) * Metric.ediam (t j) := by
+        calc
+          Metric.ediam (a j) = Metric.ediam (f '' (s ∩ t j)) :=
+            by exact Metric.ediam_closure (s := f '' (s ∩ t j))
+          _ ≤ (K : ℝ≥0∞) * Metric.ediam (s ∩ t j) :=
+            by simpa using hf.holderOnWith.ediam_image_le_of_subset inter_subset_left
+          _ ≤ (K : ℝ≥0∞) * Metric.ediam (t j) := by
+            exact mul_right_mono (Metric.ediam_mono inter_subset_right)
+      calc
+        μHE[Module.finrank ℝ F] (a j) * Metric.ediam (t j) ^ k =
+            volume (a j) * Metric.ediam (t j) ^ k := by
+          rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+        _ ≤ (Metric.ediam (a j) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1)) * Metric.ediam (t j) ^ k := by
+          gcongr
+          exact innerProductSpace_volume_le_ediam_pow (a j)
+        _ ≤ (((K : ℝ≥0∞) * Metric.ediam (t j)) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1)) * Metric.ediam (t j) ^ k := by
+          gcongr
+        _ = C * Metric.ediam (t j) ^ (k + Module.finrank ℝ F) := by
+          by_cases hd0 : Metric.ediam (t j) = 0
+          · rw [hd0, ENNReal.zero_rpow_of_pos hk, mul_zero,
+              ENNReal.zero_rpow_of_pos
+                (show 0 < k + (Module.finrank ℝ F : ℝ) by positivity), mul_zero]
+          · have hdtop : Metric.ediam (t j) ≠ ∞ :=
+              ne_top_of_le_ne_top hr (htdiam j)
+            rw [mul_pow, ENNReal.rpow_add _ _ hd0 hdtop, ENNReal.rpow_natCast]
+            simp only [C]
+            ac_rfl
+    _ = C * ∑' j, ⨆ _ : (t j).Nonempty,
+          Metric.ediam (t j) ^ (k + Module.finrank ℝ F) := by
+      rw [ENNReal.tsum_mul_left]
+      congr 1
+      apply tsum_congr
+      intro j
+      by_cases hj : (t j).Nonempty
+      · simp [hj]
+      · have htj : t j = ∅ := not_nonempty_iff_eq_empty.mp hj
+        rw [htj, Metric.ediam_empty, ENNReal.zero_rpow_of_pos
+          (show 0 < k + (Module.finrank ℝ F : ℝ) by positivity)]
+        simp
+
+private theorem lipschitzOnWith_lintegral_hausdorffMeasure_fiber_le_compact
+    {E F : Type*} [MetricSpace E] [ProperSpace E] [MeasurableSpace E] [BorelSpace E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {s : Set E} {K : ℝ≥0} (hf : LipschitzOnWith K f s)
+    (hs : IsCompact s) (hK : K ≠ 0) {k : ℝ} (hk : 0 < k) :
+    ∫⁻ y : F, μH[k] (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] ≤
+      (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        volume (Metric.closedBall (0 : F) 1) *
+          μH[k + Module.finrank ℝ F] s := by
+  let C : ℝ≥0∞ := (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+    volume (Metric.closedBall (0 : F) 1)
+  have hscale : Antitone (fun n : ℕ => (hausdorffScale n : ℝ≥0∞)) := by
+    intro n m hnm
+    dsimp only [hausdorffScale]
+    exact_mod_cast inv_anti₀ (show 0 < ((n + 1 : ℕ) : ℝ≥0) by positivity)
+      (show ((n + 1 : ℕ) : ℝ≥0) ≤ (m + 1 : ℕ) by
+        exact_mod_cast Nat.add_le_add_right hnm 1)
+  have hmeas : ∀ n, Measurable (fun y : F =>
+      openHausdorffContent k (hausdorffScale n) (s ∩ f ⁻¹' {y})) := fun n =>
+    measurable_openHausdorffContent_fiber hs hf.continuousOn k _
+  have hmono : Monotone (fun n => fun y : F =>
+      openHausdorffContent k (hausdorffScale n) (s ∩ f ⁻¹' {y})) := by
+    intro n m hnm y
+    exact antitone_openHausdorffContent k (s ∩ f ⁻¹' {y}) (hscale hnm)
+  calc
+    (∫⁻ y : F, μH[k] (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F]) =
+        ∫⁻ y : F, ⨆ n, openHausdorffContent k (hausdorffScale n)
+          (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] := by
+      apply lintegral_congr
+      intro y
+      exact hausdorffMeasure_eq_iSup_openHausdorffContent hk _
+    _ = ⨆ n, ∫⁻ y : F, openHausdorffContent k (hausdorffScale n)
+          (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] :=
+      MeasureTheory.lintegral_iSup hmeas hmono
+    _ ≤ C * μH[k + Module.finrank ℝ F] s := by
+      refine iSup_le fun n => ?_
+      exact (lintegral_openHausdorffContent_fiber_le hf hK hk
+        (hausdorffScale n) (by simp [hausdorffScale])).trans
+          (mul_right_mono ((le_iSup (fun j =>
+            openHausdorffContent (k + Module.finrank ℝ F) (hausdorffScale j) s) n).trans_eq
+              (hausdorffMeasure_eq_iSup_openHausdorffContent
+                (show 0 < k + (Module.finrank ℝ F : ℝ) by positivity) s).symm))
+    _ = (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        volume (Metric.closedBall (0 : F) 1) *
+          μH[k + Module.finrank ℝ F] s := rfl
+
+private theorem exists_open_cover_ediam_cost_lt
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (r : ℝ≥0∞) (s : Set X)
+    {c : ℝ≥0∞} (h : openHausdorffContent d r s < c) :
+    ∃ t : ℕ → Set X, (∀ j, IsOpen (t j)) ∧
+      (∀ j, Metric.ediam (t j) ≤ r) ∧ s ⊆ ⋃ j, t j ∧
+        ∑' j, ⨆ _ : (t j).Nonempty, Metric.ediam (t j) ^ d < c := by
+  unfold openHausdorffContent at h
+  simpa only [iInf_lt_iff, exists_prop] using h
+
+theorem LipschitzOnWith.exists_measurable_hausdorffMeasure_fiber_majorant
+    {E F : Type*} [MetricSpace E] [MeasurableSpace E] [BorelSpace E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {s : Set E} {K : ℝ≥0} (hf : LipschitzOnWith K f s)
+    {k : ℝ} (hk : 0 < k)
+    (hfin : μH[k + Module.finrank ℝ F] s ≠ ∞) :
+    ∃ q : F → ℝ≥0∞, Measurable q ∧
+      (∀ y, μH[k] (s ∩ f ⁻¹' {y}) ≤ q y) ∧
+        ∫⁻ y : F, q y ∂μHE[Module.finrank ℝ F] ≤
+          (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+            volume (Metric.closedBall (0 : F) 1) *
+              μH[k + Module.finrank ℝ F] s := by
+  classical
+  let d : ℝ := k + Module.finrank ℝ F
+  let C : ℝ≥0∞ := (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+    volume (Metric.closedBall (0 : F) 1)
+  have hd : 0 < d := by
+    dsimp only [d]
+    positivity
+  have hcontent : ∀ n,
+      openHausdorffContent d (hausdorffScale n) s ≤ μH[d] s := by
+    intro n
+    exact (le_iSup (fun j => openHausdorffContent d (hausdorffScale j) s) n).trans_eq
+      (hausdorffMeasure_eq_iSup_openHausdorffContent hd s).symm
+  have hcover : ∀ n, ∃ t : ℕ → Set E, (∀ j, IsOpen (t j)) ∧
+      (∀ j, Metric.ediam (t j) ≤ hausdorffScale n) ∧ s ⊆ ⋃ j, t j ∧
+        ∑' j, ⨆ _ : (t j).Nonempty, Metric.ediam (t j) ^ d <
+          μH[d] s + hausdorffScale n := by
+    intro n
+    apply exists_open_cover_ediam_cost_lt d (hausdorffScale n) s
+    exact (hcontent n).trans_lt (ENNReal.lt_add_right hfin (by simp [hausdorffScale]))
+  choose t htopen htdiam htcover htcost using hcover
+  let a : ℕ → ℕ → Set F := fun n j => closure (f '' (s ∩ t n j))
+  let q : ℕ → F → ℝ≥0∞ := fun n y =>
+    ∑' j, (a n j).indicator (fun _ => Metric.ediam (t n j) ^ k) y
+  have hameas : ∀ n j, MeasurableSet (a n j) := fun _ _ => isClosed_closure.measurableSet
+  have hqmeas : ∀ n, Measurable (q n) := by
+    intro n
+    exact Measurable.tsum fun j => measurable_const.indicator (hameas n j)
+  have hpoint : ∀ y : F,
+      μH[k] (s ∩ f ⁻¹' {y}) ≤ liminf (fun n => q n y) atTop := by
+    intro y
+    let u : ℕ → ℕ → Set E := fun n j => if y ∈ a n j then t n j else ∅
+    have hudiam : ∀ n j, Metric.ediam (u n j) ≤ hausdorffScale n := by
+      intro n j
+      by_cases hj : y ∈ a n j
+      · simpa [u, hj] using htdiam n j
+      · simp [u, hj]
+    have hucover : ∀ n, s ∩ f ⁻¹' {y} ⊆ ⋃ j, u n j := by
+      intro n x hx
+      obtain ⟨j, hxj⟩ := mem_iUnion.1 (htcover n hx.1)
+      apply mem_iUnion.2
+      refine ⟨j, ?_⟩
+      have hyj : y ∈ a n j := by
+        apply subset_closure
+        exact ⟨x, ⟨hx.1, hxj⟩, by simpa using hx.2⟩
+      simpa [u, hyj] using hxj
+    have hmain := Measure.hausdorffMeasure_le_liminf_tsum k
+      (s ∩ f ⁻¹' {y}) (fun n => (hausdorffScale n : ℝ≥0∞))
+      tendsto_hausdorffScale u (Eventually.of_forall hudiam)
+      (Eventually.of_forall hucover)
+    refine hmain.trans_eq ?_
+    congr 1
+    funext n
+    apply tsum_congr
+    intro j
+    by_cases hj : y ∈ a n j
+    · simp [u, hj]
+    · simp [u, hj, hk]
+  have hqintegral : ∀ n, ∫⁻ y : F, q n y ∂μHE[Module.finrank ℝ F] ≤
+      C * (μH[d] s + hausdorffScale n) := by
+    intro n
+    calc
+      (∫⁻ y : F, q n y ∂μHE[Module.finrank ℝ F]) =
+          ∑' j, μHE[Module.finrank ℝ F] (a n j) * Metric.ediam (t n j) ^ k := by
+        rw [show q n = fun y => ∑' j,
+            (a n j).indicator (fun _ => Metric.ediam (t n j) ^ k) y from rfl]
+        rw [MeasureTheory.lintegral_tsum fun j =>
+          (measurable_const.indicator (hameas n j)).aemeasurable]
+        apply tsum_congr
+        intro j
+        rw [MeasureTheory.lintegral_indicator (hameas n j)]
+        simp [mul_comm]
+      _ ≤ ∑' j, C * Metric.ediam (t n j) ^ d := by
+        apply ENNReal.tsum_le_tsum
+        intro j
+        have himage : Metric.ediam (a n j) ≤
+            (K : ℝ≥0∞) * Metric.ediam (t n j) := by
+          calc
+            Metric.ediam (a n j) = Metric.ediam (f '' (s ∩ t n j)) :=
+              by exact Metric.ediam_closure (s := f '' (s ∩ t n j))
+            _ ≤ (K : ℝ≥0∞) * Metric.ediam (s ∩ t n j) :=
+              by simpa using hf.holderOnWith.ediam_image_le_of_subset inter_subset_left
+            _ ≤ (K : ℝ≥0∞) * Metric.ediam (t n j) :=
+              mul_right_mono (Metric.ediam_mono inter_subset_right)
+        calc
+          μHE[Module.finrank ℝ F] (a n j) * Metric.ediam (t n j) ^ k =
+              volume (a n j) * Metric.ediam (t n j) ^ k := by
+            rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+          _ ≤ (Metric.ediam (a n j) ^ Module.finrank ℝ F *
+                volume (Metric.closedBall (0 : F) 1)) * Metric.ediam (t n j) ^ k := by
+            gcongr
+            exact innerProductSpace_volume_le_ediam_pow (a n j)
+          _ ≤ (((K : ℝ≥0∞) * Metric.ediam (t n j)) ^ Module.finrank ℝ F *
+                volume (Metric.closedBall (0 : F) 1)) * Metric.ediam (t n j) ^ k := by
+            gcongr
+          _ = C * Metric.ediam (t n j) ^ d := by
+            by_cases hd0 : Metric.ediam (t n j) = 0
+            · rw [hd0, ENNReal.zero_rpow_of_pos hk, mul_zero,
+                ENNReal.zero_rpow_of_pos hd, mul_zero]
+            · have hdtop : Metric.ediam (t n j) ≠ ∞ :=
+                ne_top_of_le_ne_top (by simp [hausdorffScale]) (htdiam n j)
+              rw [mul_pow, show d = k + Module.finrank ℝ F from rfl,
+                ENNReal.rpow_add _ _ hd0 hdtop, ENNReal.rpow_natCast]
+              simp only [C]
+              ac_rfl
+      _ ≤ C * ∑' j, ⨆ _ : (t n j).Nonempty, Metric.ediam (t n j) ^ d := by
+        rw [ENNReal.tsum_mul_left]
+        gcongr with j
+        by_cases hj : (t n j).Nonempty
+        · simp [hj]
+        · have htj : t n j = ∅ := not_nonempty_iff_eq_empty.mp hj
+          simp [htj, hd]
+      _ ≤ C * (μH[d] s + hausdorffScale n) := by
+        gcongr
+        exact (htcost n).le
+  let Q : F → ℝ≥0∞ := fun y => liminf (fun n => q n y) atTop
+  refine ⟨Q, Measurable.liminf hqmeas, hpoint, ?_⟩
+  calc
+    (∫⁻ y : F, Q y ∂μHE[Module.finrank ℝ F]) ≤
+        liminf (fun n => ∫⁻ y : F, q n y ∂μHE[Module.finrank ℝ F]) atTop :=
+      MeasureTheory.lintegral_liminf_le' fun n => (hqmeas n).aemeasurable
+    _ ≤ liminf (fun n => C * (μH[d] s + hausdorffScale n)) atTop :=
+      Filter.liminf_le_liminf (f := atTop) (Eventually.of_forall hqintegral)
+    _ = C * μH[d] s := by
+      have hadd : Tendsto (fun n => μH[d] s + (hausdorffScale n : ℝ≥0∞))
+          atTop (𝓝 (μH[d] s)) := by
+        simpa using tendsto_hausdorffScale.const_add (μH[d] s)
+      have hCtop : C ≠ ∞ := by
+        apply ENNReal.mul_ne_top
+        · simp
+        · exact measure_closedBall_lt_top.ne
+      apply Filter.Tendsto.liminf_eq
+      exact ENNReal.Tendsto.const_mul hadd (Or.inr hCtop)
+    _ = (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        volume (Metric.closedBall (0 : F) 1) *
+          μH[k + Module.finrank ℝ F] s := rfl
 
 private theorem nullMeasurableSet_image_hausdorffMeasure_of_measurableSet
     {X Y : Type*} [MetricSpace X] [SigmaCompactSpace X]
