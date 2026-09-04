@@ -324,13 +324,13 @@ Area.critical_image_null {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   (hcrit : ∀ x ∈ s, (f' x).det = 0) : volume (f '' s) = 0
 ```
 
-Fresh evidence for this snapshot: `lake build GMT.Area.Jacobian GMT.Area.Formula GMT.Area.Coarea GMT`
-and `lake build GMT` both succeed; external consumer probes for the arbitrary-surjective and
-range-valued linear coarea declarations succeed; the declaration driver passes `unusedArguments`,
-`simpNF`, and `synTaut` for the new declarations and every previously listed declaration; every
-checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`; and `git diff --check`
-succeeds. External identity and subsingleton-codomain edge probes for the surjective theorem also
-elaborate successfully. The requested
+Fresh evidence for this snapshot: `lake build GMT.Measure.Hausdorff GMT.Area.Jacobian GMT.Area.Formula GMT.Area.Coarea GMT`
+and `lake build GMT` both succeed; external consumer probes for the arbitrary-surjective,
+range-valued, Hausdorff-fiber, and equal-rank injective declarations succeed; the declaration driver
+passes `unusedArguments`, `simpNF`, and `synTaut` for the new declarations and every previously
+listed declaration; every checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`;
+and `git diff --check` succeeds. External identity and subsingleton-codomain edge probes for the
+surjective theorem also elaborate successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a
 passing check without changing the environment. The added finite-partition engine was separately
 checked with `#check`, the available declaration linters, its axiom closure, the aggregate build,
@@ -339,12 +339,14 @@ were checked in the same probe and axiom driver.
 
 ## Official workflow verdicts
 
-`prove-theorem-suite`: **Not accepted**. The finite headline suite is incomplete: the square-dimensional
-general non-injective weighted area formula and the unweighted, weighted, and rank-deficient linear
-coarea formulas are present, but the general coarea branch and required approximation,
-fiber-estimate, and Sard branches remain open.
+`prove-theorem-suite`: **Not accepted**. The finite headline suite is incomplete: the
+square-dimensional general non-injective weighted area formula and the unweighted, weighted, and
+rank-deficient linear coarea formulas are present, and Simon's 1.8 fiber-cardinality estimate is now
+implemented, but the general coarea branch, Simon's 1.5 approximation theorem, 1.9 Hausdorff-fiber
+estimate, and the m < n Sard decomposition remain open.
 
 `audit-lean-theorem-suite`: **Not accepted**. The checked source snapshot has clean available
 compiler, aggregate-build, linter, axiom, and diff checks, but it fails the mathematical completeness
-gate for the same unresolved headlines despite the new general area theorem. The `defLemma` linter named by the contract is unavailable
-in this Mathlib revision; the available declaration linters pass.
+gate for the same unresolved headlines despite the new Hausdorff-fiber and equal-rank area layers.
+The `defLemma` linter named by the contract is unavailable in this Mathlib revision; the available
+declaration linters pass.
