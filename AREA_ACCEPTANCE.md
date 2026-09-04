@@ -11,6 +11,8 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Lusin closed-set continuity | Chapter 2, Section 1, proof of Theorem 1.5, pp. 43-44 | `StronglyMeasurable.exists_isClosed_continuousOn` in `GMT/Measure/Lusin.lean` | generic weakly regular finite-measure Lusin theorem; dependency for derivative-field continuity in the C1 approximation proof | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Global Lusin closed-set continuity | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure` in `GMT/Measure/Lusin.lean` | sigma-compact locally finite corollary over arbitrary measurable sets; consumes the finite-measure Lusin theorem on a canonical open spanning sequence | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Closed differentiability set with continuous derivative | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `LipschitzWith.exists_isClosed_differentiableAt_continuousOn_fderiv` in `GMT/Analysis/Lipschitz.lean` | finite-dimensional Rademacher-Lusin interface; produces a closed set with arbitrarily small complement on which the map is differentiable and its derivative is continuous | implemented; consumes Rademacher and global Lusin, module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| Closed Whitney one-jet extraction | Chapter 2, Section 1, proof of Theorem 1.5 and Theorem 1.6, pp. 42-44 | `exists_closed_measure_sdiff_lt_isWhitneyOneJetOn` in `GMT/Analysis/Whitney.lean` | generic locally finite extraction from a continuous derivative field; produces the local-on-compacts strict two-point compatibility required by Whitney extension | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| Lipschitz Whitney one-jet extraction | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `LipschitzWith.exists_isClosed_isWhitneyOneJetOn` in `GMT/Analysis/Whitney.lean` | finite-dimensional Rademacher-Lusin-Egoroff interface; produces a closed co-small set carrying the canonical derivative Whitney one-jet | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Hausdorff image estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_image_hmeasure_le` in `GMT/Area/Jacobian.lean` | measure estimate | implemented |
 | Dimension-lowering Lipschitz image-null estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_dimension_lowering_image_null` in `GMT/Area/Jacobian.lean` | target-dimensional image nullity for Lipschitz maps from lower-dimensional finite-dimensional spaces | implemented |
 | Euclidean Hausdorff normalization bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Measure.euclideanHausdorffMeasure_apply_eq_smul` in `GMT/Measure/Hausdorff.lean` | explicit pointwise bridge from normalized `μHE` to raw `μH` | implemented |
@@ -70,6 +72,10 @@ supporting API rather than additional Simon headlines:
 `StronglyMeasurable.exists_isClosed_continuousOn`,
 `StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure`,
 `LipschitzWith.exists_isClosed_differentiableAt_continuousOn_fderiv`,
+`HasStrictFDerivWithinAt`, `IsWhitneyOneJetOn`,
+`exists_closed_measure_sdiff_lt_isWhitneyOneJetOn`,
+`LipschitzWith.exists_isClosed_isWhitneyOneJetOn`,
+`ApproximatesLinearOn.ae_norm_fderiv_sub_le`,
 `Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
 `Area.jacobian_continuousLinearMap`, `Area.jacobian_linearMap`, `Area.jacobian_zero`,
@@ -152,6 +158,35 @@ LipschitzWith.exists_isClosed_differentiableAt_continuousOn_fderiv {E F}
   (hf : LipschitzWith K f) {ε : ENNReal} (hε : ε ≠ 0) :
   ∃ s, IsClosed s ∧ Measure.addHaar sᶜ < ε ∧
     (∀ x ∈ s, DifferentiableAt ℝ f x) ∧ ContinuousOn (fderiv ℝ f) s
+HasStrictFDerivWithinAt {𝕜 E F} [NontriviallyNormedField 𝕜]
+  [NormedAddCommGroup E] [NormedSpace 𝕜 E] [NormedAddCommGroup F]
+  [NormedSpace 𝕜 F] (f : E → F) (f' : E →L[𝕜] F) (s : Set E) (x : E) : Prop
+IsWhitneyOneJetOn {𝕜 E F} [NontriviallyNormedField 𝕜]
+  [NormedAddCommGroup E] [NormedSpace 𝕜 E] [NormedAddCommGroup F]
+  [NormedSpace 𝕜 F] (f : E → F) (f' : E → E →L[𝕜] F) (s : Set E) : Prop
+exists_closed_measure_sdiff_lt_isWhitneyOneJetOn {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [NormedAddCommGroup F]
+  [NormedSpace ℝ F] [MeasurableSpace E] [BorelSpace E]
+  (mu : Measure E) [IsLocallyFiniteMeasure mu] [ProperSpace E]
+  (f : E → F) (s : Set E) (hs : IsClosed s) (f' : E → E →L[ℝ] F)
+  (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+  (hf'cont : ContinuousOn f' s) {ε : ENNReal} (εpos : 0 < ε) :
+  ∃ K ⊆ s, IsClosed K ∧ mu (s \ K) < ε ∧ IsWhitneyOneJetOn f f' K
+LipschitzWith.exists_isClosed_isWhitneyOneJetOn {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [NormedAddCommGroup F]
+  [NormedSpace ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [FiniteDimensional ℝ E] [FiniteDimensional ℝ F]
+  {f : E → F} {K : NNReal} (hf : LipschitzWith K f)
+  {ε : ENNReal} (hε : ε ≠ 0) :
+  ∃ s, IsClosed s ∧ Measure.addHaar sᶜ < ε ∧ IsWhitneyOneJetOn f (fderiv ℝ f) s
+ApproximatesLinearOn.ae_norm_fderiv_sub_le {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [NormedSpace ℝ F] [MeasurableSpace E] [BorelSpace E]
+  (mu : Measure E) [mu.IsAddHaarMeasure] {s : Set E} {f : E → F}
+  {A : E →L[ℝ] F} {δ : NNReal} (hf : ApproximatesLinearOn f A s δ)
+  (hs : MeasurableSet s) (f' : E → E →L[ℝ] F)
+  (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x) :
+  ∀ᵐ x ∂mu.restrict s, ‖f' x - A‖₊ ≤ δ
 Area.jacobian {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
   [NormedAddCommGroup F] [InnerProductSpace ℝ F] (f : E → F) (x : E) : ℝ
 Area.jacobianWithin {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
@@ -567,6 +602,10 @@ The finite-dimensional closed differentiability-set theorem composes Rademacher 
 Lusin theorem. `lake build GMT.Analysis.Lipschitz` is silent, its exact signature is recorded above,
 the available declaration linters pass, and its axiom closure is
 `[propext, Classical.choice, Quot.sound]`.
+The rectangular `ApproximatesLinearOn` derivative estimate and the Whitney one-jet definitions,
+generic locally finite extraction theorem, and Lipschitz corollary have the exact signatures recorded
+above. `lake build GMT.Analysis.Lipschitz GMT.Analysis.Whitney` is silent, all available declaration
+linters pass, and every axiom closure is `[propext, Classical.choice, Quot.sound]`.
 External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
 successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a
