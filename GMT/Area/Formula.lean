@@ -1,4 +1,5 @@
 import GMT.Area.Jacobian
+import GMT.Analysis.Lipschitz
 import GMT.Measure.Hausdorff
 import Mathlib.MeasureTheory.Function.Jacobian
 import Mathlib.MeasureTheory.Function.JacobianOneDim
@@ -38,9 +39,10 @@ theorem weightedMultiplicity_comp {E F : Type*} (f : E → F) (s : Set E)
     _ = multiplicity f s y * g y := by rfl
 
 theorem aemeasurable_multiplicity
-    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-    {f : E → E} {s : Set E} {K : ℝ≥0}
+    [MetricSpace F] [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {s : Set E} {K : ℝ≥0}
     (hf : LipschitzOnWith K f s) (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
     (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
     AEMeasurable (multiplicity f s) μH[(Module.finrank ℝ E : ℝ)] := by
@@ -51,15 +53,16 @@ theorem aemeasurable_multiplicity
     (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity) hs hfin
 
 theorem lintegral_multiplicity_le
-    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-    {f : E → E} {s : Set E} {K : ℝ≥0}
+    [MetricSpace F] [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {s : Set E} {K : ℝ≥0}
     (hf : LipschitzOnWith K f s) (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
     (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
-    ∫⁻ y : E, multiplicity f s y ∂μH[(Module.finrank ℝ E : ℝ)] ≤
+    ∫⁻ y : F, multiplicity f s y ∂μH[(Module.finrank ℝ E : ℝ)] ≤
       (K : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ) *
         μH[(Module.finrank ℝ E : ℝ)] s := by
-  change (∫⁻ y : E, ENat.toENNReal (encard (s ∩ f ⁻¹' {y}))
+  change (∫⁻ y : F, ENat.toENNReal (encard (s ∩ f ⁻¹' {y}))
       ∂μH[(Module.finrank ℝ E : ℝ)]) ≤
     (K : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ) * μH[(Module.finrank ℝ E : ℝ)] s
   exact LipschitzOnWith.lintegral_encard_fiber_le hf
@@ -447,93 +450,469 @@ theorem euclideanHausdorffMeasure_image_le_mul_of_normDet_lt
         (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity) (faug '' s)
     exact hproj.trans hmain
 
-variable {E : Type*}
+variable {E F : Type*}
   [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
-  [MeasurableSpace E] [BorelSpace E]
+  [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+  [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+  {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E}
+
+private theorem image_le_lintegral_normDet_aux1
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+    {ε : ℝ≥0} (εpos : 0 < ε) :
+    μHE[Module.finrank ℝ E] (f '' s) ≤
+      (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E]) +
+        2 * ε * μHE[Module.finrank ℝ E] s := by
+  have hlocal :
+      ∀ A : E →L[ℝ] F,
+        ∃ δ : ℝ≥0,
+          0 < δ ∧
+            (∀ B : E →L[ℝ] F, ‖B - A‖ ≤ δ →
+              |B.toLinearMap.normDet - A.toLinearMap.normDet| ≤ ε) ∧
+              ∀ (t : Set E) (g : E → F), ApproximatesLinearOn g A t δ →
+                μHE[Module.finrank ℝ E] (g '' t) ≤
+                  (ENNReal.ofReal A.toLinearMap.normDet + ε) *
+                    μHE[Module.finrank ℝ E] t := by
+    intro A
+    let c : ℝ≥0 := Real.toNNReal A.toLinearMap.normDet + ε
+    have hc : ENNReal.ofReal A.toLinearMap.normDet < (c : ℝ≥0∞) := by
+      simp only [c, ENNReal.ofReal, lt_add_iff_pos_right, εpos, ENNReal.coe_lt_coe]
+    rcases ((euclideanHausdorffMeasure_image_le_mul_of_normDet_lt A hc).and
+      self_mem_nhdsWithin).exists with ⟨δ, hδ, δpos⟩
+    obtain ⟨δ', δ'pos, hδ'⟩ : ∃ δ' : ℝ, 0 < δ' ∧
+        ∀ B : E →L[ℝ] F, dist B A < δ' →
+          dist B.toLinearMap.normDet A.toLinearMap.normDet < ε := by
+      refine Metric.continuousAt_iff.1
+        ContinuousLinearMap.continuous_normDet.continuousAt ε εpos
+    let δ'' : ℝ≥0 := ⟨δ' / 2, (half_pos δ'pos).le⟩
+    refine ⟨min δ δ'', lt_min δpos (half_pos δ'pos), ?_, ?_⟩
+    · intro B hB
+      rw [← Real.dist_eq]
+      apply (hδ' B _).le
+      rw [dist_eq_norm]
+      calc
+        ‖B - A‖ ≤ (min δ δ'' : ℝ≥0) := hB
+        _ ≤ δ'' := by simp only [le_refl, NNReal.coe_min, min_le_iff, or_true]
+        _ < δ' := half_lt_self δ'pos
+    · intro t g htg
+      exact hδ t g (htg.mono_num (min_le_left _ _))
+  choose δ hδ using hlocal
+  obtain ⟨t, A, t_disj, t_meas, t_cover, ht, -⟩ :=
+    exists_partition_approximatesLinearOn_of_hasFDerivWithinAt f s f' hf' δ
+      fun A => (hδ A).1.ne'
+  calc
+    μHE[Module.finrank ℝ E] (f '' s) ≤
+        μHE[Module.finrank ℝ E] (⋃ n, f '' (s ∩ t n)) := by
+      apply measure_mono
+      rw [← image_iUnion, ← inter_iUnion]
+      exact Set.image_mono (subset_inter Subset.rfl t_cover)
+    _ ≤ ∑' n, μHE[Module.finrank ℝ E] (f '' (s ∩ t n)) := measure_iUnion_le _
+    _ ≤ ∑' n, (ENNReal.ofReal (A n).toLinearMap.normDet + ε) *
+        μHE[Module.finrank ℝ E] (s ∩ t n) := by
+      apply ENNReal.tsum_le_tsum fun n => ?_
+      exact (hδ (A n)).2.2 _ _ (ht n)
+    _ = ∑' n, ∫⁻ _ in s ∩ t n,
+        ENNReal.ofReal (A n).toLinearMap.normDet + ε
+        ∂μHE[Module.finrank ℝ E] := by
+      simp only [lintegral_const, MeasurableSet.univ, Measure.restrict_apply, univ_inter]
+    _ ≤ ∑' n, ∫⁻ x in s ∩ t n,
+        ENNReal.ofReal ((f' x).toLinearMap.normDet) + 2 * ε
+        ∂μHE[Module.finrank ℝ E] := by
+      apply ENNReal.tsum_le_tsum fun n => ?_
+      apply lintegral_mono_ae
+      filter_upwards [(ht n).ae_norm_fderiv_sub_le
+          (μHE[Module.finrank ℝ E] : Measure E) (hs.inter (t_meas n)) f'
+          fun x hx => (hf' x hx.1).mono inter_subset_left]
+      intro x hx
+      have hnorm : (A n).toLinearMap.normDet ≤
+          (f' x).toLinearMap.normDet + ε := by
+        calc
+          (A n).toLinearMap.normDet ≤ (f' x).toLinearMap.normDet +
+              |(f' x).toLinearMap.normDet - (A n).toLinearMap.normDet| := by
+            linarith [neg_le_abs ((f' x).toLinearMap.normDet -
+              (A n).toLinearMap.normDet)]
+          _ ≤ (f' x).toLinearMap.normDet + ε :=
+            add_le_add le_rfl ((hδ (A n)).2.1 _ hx)
+      calc
+        ENNReal.ofReal (A n).toLinearMap.normDet + ε ≤
+            ENNReal.ofReal ((f' x).toLinearMap.normDet + ε) + ε := by gcongr
+        _ = ENNReal.ofReal ((f' x).toLinearMap.normDet) + 2 * ε := by
+          simp only [ENNReal.ofReal_add, LinearMap.normDet_nonneg, two_mul, add_assoc,
+            NNReal.zero_le_coe, ENNReal.ofReal_coe_nnreal]
+    _ = ∫⁻ x in ⋃ n, s ∩ t n,
+        ENNReal.ofReal ((f' x).toLinearMap.normDet) + 2 * ε
+        ∂μHE[Module.finrank ℝ E] := by
+      have hmeas : ∀ n : ℕ, MeasurableSet (s ∩ t n) := fun n => hs.inter (t_meas n)
+      rw [lintegral_iUnion hmeas]
+      exact pairwise_disjoint_mono t_disj fun n => inter_subset_right
+    _ = ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet) + 2 * ε
+        ∂μHE[Module.finrank ℝ E] := by
+      rw [← inter_iUnion, inter_eq_self_of_subset_left t_cover]
+    _ = (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E]) +
+        2 * ε * μHE[Module.finrank ℝ E] s := by
+      simp only [lintegral_add_right' _ aemeasurable_const, setLIntegral_const]
+
+private theorem image_le_lintegral_normDet_aux2
+    (hs : MeasurableSet s) (hfin : μHE[Module.finrank ℝ E] s ≠ ∞)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x) :
+    μHE[Module.finrank ℝ E] (f '' s) ≤
+      ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E] := by
+  have hlim : Tendsto
+      (fun ε : ℝ≥0 =>
+        (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+          ∂μHE[Module.finrank ℝ E]) +
+          2 * ε * μHE[Module.finrank ℝ E] s)
+      (𝓝[>] 0)
+      (𝓝 ((∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+          ∂μHE[Module.finrank ℝ E]) +
+          2 * (0 : ℝ≥0) * μHE[Module.finrank ℝ E] s)) := by
+    apply Tendsto.mono_left _ nhdsWithin_le_nhds
+    refine tendsto_const_nhds.add ?_
+    refine ENNReal.Tendsto.mul_const ?_ (Or.inr hfin)
+    exact ENNReal.Tendsto.const_mul (ENNReal.tendsto_coe.2 tendsto_id)
+      (Or.inr ENNReal.coe_ne_top)
+  simp only [add_zero, zero_mul, mul_zero, ENNReal.coe_zero] at hlim
+  apply ge_of_tendsto hlim
+  filter_upwards [self_mem_nhdsWithin]
+  intro ε εpos
+  rw [mem_Ioi] at εpos
+  exact image_le_lintegral_normDet_aux1 hs hf' εpos
+
+private theorem image_le_lintegral_normDet
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x) :
+    μHE[Module.finrank ℝ E] (f '' s) ≤
+      ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E] := by
+  let u n := disjointed (spanningSets (μHE[Module.finrank ℝ E] : Measure E)) n
+  have u_meas : ∀ n, MeasurableSet (u n) := by
+    intro n
+    apply MeasurableSet.disjointed fun i => ?_
+    exact measurableSet_spanningSets (μHE[Module.finrank ℝ E] : Measure E) i
+  have hs_union : s = ⋃ n, s ∩ u n := by
+    rw [← inter_iUnion, iUnion_disjointed, iUnion_spanningSets, inter_univ]
+  calc
+    μHE[Module.finrank ℝ E] (f '' s) ≤
+        ∑' n, μHE[Module.finrank ℝ E] (f '' (s ∩ u n)) := by
+      conv_lhs => rw [hs_union, image_iUnion]
+      exact measure_iUnion_le _
+    _ ≤ ∑' n, ∫⁻ x in s ∩ u n,
+        ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E] := by
+      apply ENNReal.tsum_le_tsum fun n => ?_
+      apply image_le_lintegral_normDet_aux2 (hs.inter (u_meas n)) _
+        fun x hx => (hf' x hx.1).mono inter_subset_left
+      have hlt : μHE[Module.finrank ℝ E] (u n) < ∞ :=
+        lt_of_le_of_lt (measure_mono (disjointed_subset _ _))
+          (measure_spanningSets_lt_top (μHE[Module.finrank ℝ E] : Measure E) n)
+      exact ne_of_lt (lt_of_le_of_lt (measure_mono inter_subset_right) hlt)
+    _ = ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E] := by
+      conv_rhs => rw [hs_union]
+      rw [lintegral_iUnion]
+      · intro n
+        exact hs.inter (u_meas n)
+      · exact pairwise_disjoint_mono (disjoint_disjointed _) fun n => inter_subset_right
+
+private theorem lintegral_normDet_le_image_aux1
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+    (hfinj : InjOn f s) {ε : ℝ≥0} (εpos : 0 < ε) :
+    (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+      ∂μHE[Module.finrank ℝ E]) ≤
+      μHE[Module.finrank ℝ E] (f '' s) +
+        2 * ε * μHE[Module.finrank ℝ E] s := by
+  have hlocal :
+      ∀ A : E →L[ℝ] F,
+        ∃ δ : ℝ≥0,
+          0 < δ ∧
+            (∀ B : E →L[ℝ] F, ‖B - A‖ ≤ δ →
+              |B.toLinearMap.normDet - A.toLinearMap.normDet| ≤ ε) ∧
+              ∀ (t : Set E) (g : E → F), ApproximatesLinearOn g A t δ →
+                ENNReal.ofReal A.toLinearMap.normDet * μHE[Module.finrank ℝ E] t ≤
+                  μHE[Module.finrank ℝ E] (g '' t) +
+                    ε * μHE[Module.finrank ℝ E] t := by
+    intro A
+    obtain ⟨δ', δ'pos, hδ'⟩ : ∃ δ' : ℝ, 0 < δ' ∧
+        ∀ B : E →L[ℝ] F, dist B A < δ' →
+          dist B.toLinearMap.normDet A.toLinearMap.normDet < ε := by
+      refine Metric.continuousAt_iff.1
+        ContinuousLinearMap.continuous_normDet.continuousAt ε εpos
+    let δ'' : ℝ≥0 := ⟨δ' / 2, (half_pos δ'pos).le⟩
+    have hcont : ∀ B : E →L[ℝ] F, ‖B - A‖ ≤ δ'' →
+        |B.toLinearMap.normDet - A.toLinearMap.normDet| ≤ ε := by
+      intro B hB
+      rw [← Real.dist_eq]
+      apply (hδ' B _).le
+      rw [dist_eq_norm]
+      exact hB.trans_lt (half_lt_self δ'pos)
+    rcases eq_or_ne A.toLinearMap.normDet 0 with hA | hA
+    · refine ⟨δ'', half_pos δ'pos, hcont, ?_⟩
+      simp only [hA, forall_const, zero_mul, ENNReal.ofReal_zero, imp_true_iff, zero_le]
+    let c : ℝ≥0 := Real.toNNReal A.toLinearMap.normDet - ε
+    have hApos : 0 < A.toLinearMap.normDet :=
+      lt_of_le_of_ne (LinearMap.normDet_nonneg _) (Ne.symm hA)
+    have hc : (c : ℝ≥0∞) < ENNReal.ofReal A.toLinearMap.normDet := by
+      simp only [c, ENNReal.ofReal, ENNReal.coe_sub]
+      apply ENNReal.sub_lt_self ENNReal.coe_ne_top
+      · simpa only [ENNReal.coe_eq_zero, Ne] using
+          (ne_of_gt (Real.toNNReal_pos.mpr hApos))
+      · simp only [εpos.ne', ENNReal.coe_eq_zero, Ne, not_false_iff]
+    rcases ((mul_le_euclideanHausdorffMeasure_image_of_lt_normDet A hc).and
+      self_mem_nhdsWithin).exists with ⟨δ, hδ, δpos⟩
+    refine ⟨min δ δ'', lt_min δpos (half_pos δ'pos), ?_, ?_⟩
+    · intro B hB
+      apply hcont B (hB.trans _)
+      simp only [le_refl, NNReal.coe_min, min_le_iff, or_true]
+    · intro t g htg
+      rcases eq_or_ne (μHE[Module.finrank ℝ E] t) ∞ with htop | htop
+      · simp only [htop, εpos.ne', ENNReal.mul_top, ENNReal.coe_eq_zero, le_top,
+          Ne, not_false_iff, _root_.add_top]
+      have hmain := hδ t g (htg.mono_num (min_le_left _ _))
+      rwa [ENNReal.coe_sub, ENNReal.sub_mul, tsub_le_iff_right] at hmain
+      simp only [htop, imp_true_iff, Ne, not_false_iff]
+  choose δ hδ using hlocal
+  obtain ⟨t, A, t_disj, t_meas, t_cover, ht, -⟩ :=
+    exists_partition_approximatesLinearOn_of_hasFDerivWithinAt f s f' hf' δ
+      fun A => (hδ A).1.ne'
+  have hs_union : s = ⋃ n, s ∩ t n := by
+    rw [← inter_iUnion]
+    exact Subset.antisymm (subset_inter Subset.rfl t_cover) inter_subset_left
+  calc
+    (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E]) =
+        ∑' n, ∫⁻ x in s ∩ t n, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+          ∂μHE[Module.finrank ℝ E] := by
+      conv_lhs => rw [hs_union]
+      rw [lintegral_iUnion]
+      · exact fun n => hs.inter (t_meas n)
+      · exact pairwise_disjoint_mono t_disj fun n => inter_subset_right
+    _ ≤ ∑' n, ∫⁻ _ in s ∩ t n,
+        ENNReal.ofReal (A n).toLinearMap.normDet + ε
+        ∂μHE[Module.finrank ℝ E] := by
+      apply ENNReal.tsum_le_tsum fun n => ?_
+      apply lintegral_mono_ae
+      filter_upwards [(ht n).ae_norm_fderiv_sub_le
+          (μHE[Module.finrank ℝ E] : Measure E) (hs.inter (t_meas n)) f'
+          fun x hx => (hf' x hx.1).mono inter_subset_left]
+      intro x hx
+      have hnorm : (f' x).toLinearMap.normDet ≤
+          (A n).toLinearMap.normDet + ε := by
+        calc
+          (f' x).toLinearMap.normDet ≤ (A n).toLinearMap.normDet +
+              |(f' x).toLinearMap.normDet - (A n).toLinearMap.normDet| := by
+            linarith [le_abs_self ((f' x).toLinearMap.normDet -
+              (A n).toLinearMap.normDet)]
+          _ ≤ (A n).toLinearMap.normDet + ε :=
+            add_le_add le_rfl ((hδ (A n)).2.1 _ hx)
+      calc
+        ENNReal.ofReal ((f' x).toLinearMap.normDet) ≤
+            ENNReal.ofReal ((A n).toLinearMap.normDet + ε) :=
+          ENNReal.ofReal_le_ofReal hnorm
+        _ = ENNReal.ofReal (A n).toLinearMap.normDet + ε := by
+          simp only [ENNReal.ofReal_add, LinearMap.normDet_nonneg, NNReal.zero_le_coe,
+            ENNReal.ofReal_coe_nnreal]
+    _ = ∑' n, (ENNReal.ofReal (A n).toLinearMap.normDet *
+        μHE[Module.finrank ℝ E] (s ∩ t n) +
+          ε * μHE[Module.finrank ℝ E] (s ∩ t n)) := by
+      simp only [setLIntegral_const, lintegral_add_right _ measurable_const]
+    _ ≤ ∑' n, (μHE[Module.finrank ℝ E] (f '' (s ∩ t n)) +
+        ε * μHE[Module.finrank ℝ E] (s ∩ t n) +
+          ε * μHE[Module.finrank ℝ E] (s ∩ t n)) := by
+      gcongr
+      exact (hδ (A _)).2.2 _ _ (ht _)
+    _ = μHE[Module.finrank ℝ E] (f '' s) +
+        2 * ε * μHE[Module.finrank ℝ E] s := by
+      conv_rhs => rw [hs_union]
+      rw [image_iUnion, measure_iUnion]
+      rotate_left
+      · intro i j hij
+        apply Disjoint.image _ hfinj inter_subset_left inter_subset_left
+        exact Disjoint.mono inter_subset_right inter_subset_right (t_disj hij)
+      · intro i
+        have hcont : ContinuousOn f (s ∩ t i) := fun x hx =>
+          (hf' x hx.1).differentiableWithinAt.mono inter_subset_left |>.continuousWithinAt
+        exact (hs.inter (t_meas i)).image_of_continuousOn_injOn hcont
+          (hfinj.mono inter_subset_left)
+      rw [measure_iUnion]
+      rotate_left
+      · exact pairwise_disjoint_mono t_disj fun i => inter_subset_right
+      · exact fun i => hs.inter (t_meas i)
+      rw [← ENNReal.tsum_mul_left, ← ENNReal.tsum_add]
+      congr 1
+      ext1 i
+      rw [mul_assoc, two_mul, add_assoc]
+
+private theorem lintegral_normDet_le_image_aux2
+    (hs : MeasurableSet s) (hfin : μHE[Module.finrank ℝ E] s ≠ ∞)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+    (hfinj : InjOn f s) :
+    (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+      ∂μHE[Module.finrank ℝ E]) ≤
+      μHE[Module.finrank ℝ E] (f '' s) := by
+  have hlim : Tendsto
+      (fun ε : ℝ≥0 => μHE[Module.finrank ℝ E] (f '' s) +
+        2 * ε * μHE[Module.finrank ℝ E] s)
+      (𝓝[>] 0)
+      (𝓝 (μHE[Module.finrank ℝ E] (f '' s) +
+        2 * (0 : ℝ≥0) * μHE[Module.finrank ℝ E] s)) := by
+    apply Tendsto.mono_left _ nhdsWithin_le_nhds
+    refine tendsto_const_nhds.add ?_
+    refine ENNReal.Tendsto.mul_const ?_ (Or.inr hfin)
+    exact ENNReal.Tendsto.const_mul (ENNReal.tendsto_coe.2 tendsto_id)
+      (Or.inr ENNReal.coe_ne_top)
+  simp only [add_zero, zero_mul, mul_zero, ENNReal.coe_zero] at hlim
+  apply ge_of_tendsto hlim
+  filter_upwards [self_mem_nhdsWithin]
+  intro ε εpos
+  rw [mem_Ioi] at εpos
+  exact lintegral_normDet_le_image_aux1 hs hf' hfinj εpos
+
+private theorem lintegral_normDet_le_image
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+    (hfinj : InjOn f s) :
+    (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+      ∂μHE[Module.finrank ℝ E]) ≤
+      μHE[Module.finrank ℝ E] (f '' s) := by
+  let u n := disjointed (spanningSets (μHE[Module.finrank ℝ E] : Measure E)) n
+  have u_meas : ∀ n, MeasurableSet (u n) := by
+    intro n
+    apply MeasurableSet.disjointed fun i => ?_
+    exact measurableSet_spanningSets (μHE[Module.finrank ℝ E] : Measure E) i
+  have hs_union : s = ⋃ n, s ∩ u n := by
+    rw [← inter_iUnion, iUnion_disjointed, iUnion_spanningSets, inter_univ]
+  calc
+    (∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E]) =
+        ∑' n, ∫⁻ x in s ∩ u n, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+          ∂μHE[Module.finrank ℝ E] := by
+      conv_lhs => rw [hs_union]
+      rw [lintegral_iUnion]
+      · intro n
+        exact hs.inter (u_meas n)
+      · exact pairwise_disjoint_mono (disjoint_disjointed _) fun n => inter_subset_right
+    _ ≤ ∑' n, μHE[Module.finrank ℝ E] (f '' (s ∩ u n)) := by
+      apply ENNReal.tsum_le_tsum fun n => ?_
+      apply lintegral_normDet_le_image_aux2 (hs.inter (u_meas n)) _
+        (fun x hx => (hf' x hx.1).mono inter_subset_left)
+        (hfinj.mono inter_subset_left)
+      have hlt : μHE[Module.finrank ℝ E] (u n) < ∞ :=
+        lt_of_le_of_lt (measure_mono (disjointed_subset _ _))
+          (measure_spanningSets_lt_top (μHE[Module.finrank ℝ E] : Measure E) n)
+      exact ne_of_lt (lt_of_le_of_lt (measure_mono inter_subset_right) hlt)
+    _ = μHE[Module.finrank ℝ E] (f '' s) := by
+      conv_rhs => rw [hs_union, image_iUnion]
+      rw [measure_iUnion]
+      · intro i j hij
+        apply Disjoint.image _ hfinj inter_subset_left inter_subset_left
+        exact Disjoint.mono inter_subset_right inter_subset_right
+          (disjoint_disjointed _ hij)
+      · intro i
+        have hcont : ContinuousOn f (s ∩ u i) := fun x hx =>
+          (hf' x hx.1).differentiableWithinAt.mono inter_subset_left |>.continuousWithinAt
+        exact (hs.inter (u_meas i)).image_of_continuousOn_injOn hcont
+          (hfinj.mono inter_subset_left)
 
 theorem injective_area_formula
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E}
-    (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
-    (hf : InjOn f s) :
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
+    (hfinj : InjOn f s) :
     μHE[Module.finrank ℝ E] (f '' s) =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) := by
-  rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
-  have h := MeasureTheory.lintegral_abs_det_fderiv_eq_addHaar_image
-    (volume : Measure E) hs (fun x hx => (hf' x hx).hasFDerivWithinAt) hf
-  calc
-    volume (f '' s) = ∫⁻ x in s, ENNReal.ofReal |(f' x).det| := h.symm
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) := by
-      apply setLIntegral_congr_fun hs
-      intro x hx
-      simp [Area.jacobian, (hf' x hx).fderiv, LinearMap.normDet_eq_abs_det]
+      ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
+        ∂μHE[Module.finrank ℝ E] :=
+  le_antisymm (image_le_lintegral_normDet hs hf')
+    (lintegral_normDet_le_image hs hf' hfinj)
 
-theorem injective_area_formula_of_finrank_eq
-    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
-    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
-    [MeasurableSpace F] [BorelSpace F]
-    {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E}
-    (hfinrank : Module.finrank ℝ E = Module.finrank ℝ F)
-    (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
-    (hf : InjOn f s) :
+theorem injective_area_formula_of_hasFDerivAt
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+    (hfinj : InjOn f s) :
     μHE[Module.finrank ℝ E] (f '' s) =
-      ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet) := by
-  let e : F ≃ₗᵢ[ℝ] E :=
-    (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
-  let g : E → E := fun x => e (f x)
-  let g' : E → E →L[ℝ] E := fun x => e.toContinuousLinearMap.comp (f' x)
-  have hg' : ∀ x ∈ s, HasFDerivAt g (g' x) x := by
-    intro x hx
-    exact e.toContinuousLinearMap.hasFDerivAt.comp x (hf' x hx)
-  have hginj : InjOn g s := fun x hx y hy hxy => hf hx hy (e.injective hxy)
-  have H := injective_area_formula (f := g) (f' := g') hs hg' hginj
-  have himage : g '' s = e '' (f '' s) := by
-    rw [show g = e ∘ f by rfl, image_comp]
-  have hmeasure : μHE[Module.finrank ℝ E] (g '' s) = μHE[Module.finrank ℝ E] (f '' s) := by
-    rw [himage, e.isometry.euclideanHausdorffMeasure_image]
-  have hderiv : ∀ x ∈ s, (g' x).toLinearMap.normDet = (f' x).toLinearMap.normDet := by
-    intro x hx
-    change (e.toLinearIsometry.toLinearMap ∘ₗ (f' x).toLinearMap).normDet =
-      (f' x).toLinearMap.normDet
-    rw [LinearMap.normDet_comp_of_finrank_eq _ _ hfinrank]
-    simp [e.toLinearIsometry.normDet_eq_one]
-  rw [← hmeasure, H]
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
+  rw [injective_area_formula hs (fun x hx => (hf' x hx).hasFDerivWithinAt) hfinj]
   apply setLIntegral_congr_fun hs
   intro x hx
-  change ENNReal.ofReal (jacobian g x) = _
-  rw [jacobian_of_hasFDerivAt (hg' x hx), hderiv x hx]
+  change ENNReal.ofReal ((f' x).toLinearMap.normDet) = ENNReal.ofReal (jacobian f x)
+  rw [jacobian_of_hasFDerivAt (hf' x hx)]
+
+private theorem restrict_map_withDensity_jacobian
+    (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+    (hfinj : InjOn f s) :
+    Measure.map (s.domRestrict f)
+        (Measure.comap ((↑) : s → E)
+          ((μHE[Module.finrank ℝ E] : Measure E).withDensity
+            fun x => ENNReal.ofReal (jacobian f x))) =
+      (μHE[Module.finrank ℝ E] : Measure F).restrict (f '' s) := by
+  have hfcont : ContinuousOn f s := fun x hx => (hf' x hx).continuousAt.continuousWithinAt
+  have hφ : MeasurableEmbedding (s.domRestrict f) :=
+    hfcont.measurableEmbedding hs hfinj
+  apply Measure.ext
+  intro t ht
+  let r : Set E := s ∩ f ⁻¹' t
+  have hpre : MeasurableSet ((s.domRestrict f) ⁻¹' t) := hφ.measurable ht
+  have hrange : ((↑) : s → E) '' ((s.domRestrict f) ⁻¹' t) = r := by
+    ext x
+    simp [r, and_comm]
+  have hr : MeasurableSet r := by
+    rw [← hrange]
+    exact (MeasurableEmbedding.subtype_coe hs).measurableSet_image' hpre
+  have himage : f '' r = t ∩ f '' s := by
+    ext y
+    constructor
+    · rintro ⟨x, ⟨hxs, hxt⟩, rfl⟩
+      exact ⟨hxt, ⟨x, hxs, rfl⟩⟩
+    · rintro ⟨hyt, x, hxs, rfl⟩
+      exact ⟨x, ⟨hxs, hyt⟩, rfl⟩
+  rw [hφ.map_apply _ t]
+  rw [(MeasurableEmbedding.subtype_coe hs).comap_apply]
+  rw [hrange, withDensity_apply _ hr]
+  rw [Measure.restrict_apply ht, ← himage]
+  rw [injective_area_formula_of_hasFDerivAt hr
+    (fun x hx => hf' x hx.1) (hfinj.mono inter_subset_left)]
 
 theorem injective_area_formula_image_weighted
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ℝ≥0∞)
-    (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
-    (hf : InjOn f s) :
-    ∫⁻ y in f '' s, g y =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
-  have h := MeasureTheory.lintegral_image_eq_lintegral_abs_det_fderiv_mul
-    (volume : Measure E) hs (fun x hx => (hf' x hx).hasFDerivWithinAt) hf g
-  calc
-    ∫⁻ y in f '' s, g y = ∫⁻ x in s, ENNReal.ofReal |(f' x).det| * g (f x) := h
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
-      apply setLIntegral_congr_fun hs
-      intro x hx
-      simp [Area.jacobian, (hf' x hx).fderiv, LinearMap.normDet_eq_abs_det]
+    (g : F → ℝ≥0∞) (hs : MeasurableSet s)
+    (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+    (hfinj : InjOn f s) :
+    ∫⁻ y in f '' s, g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
+  have hfcont : ContinuousOn f s := fun x hx => (hf' x hx).continuousAt.continuousWithinAt
+  have hφ : MeasurableEmbedding (s.domRestrict f) :=
+    hfcont.measurableEmbedding hs hfinj
+  rw [← restrict_map_withDensity_jacobian hs hf' hfinj, hφ.lintegral_map]
+  simp only [Set.domRestrict_apply, ← Function.comp_apply (f := g)]
+  rw [← (MeasurableEmbedding.subtype_coe hs).lintegral_map,
+    map_comap_subtype_coe hs,
+    setLIntegral_withDensity_eq_setLIntegral_mul_non_measurable₀
+      (μHE[Module.finrank ℝ E] : Measure E)
+      (measurable_jacobian f |>.ennreal_ofReal.aemeasurable.restrict) (g ∘ f) hs]
+  · rfl
+  · filter_upwards [] with x
+    exact ENNReal.ofReal_lt_top
 
+omit [FiniteDimensional ℝ F] in
 private theorem exists_measurable_weightedMultiplicity_eq_indicator
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ℝ≥0∞)
+    (g : E → ℝ≥0∞)
     (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
     (hfinj : InjOn f s) (hg : Measurable g) :
-    ∃ h : E → ℝ≥0∞, Measurable h ∧
+    ∃ h : F → ℝ≥0∞, Measurable h ∧
       (∀ y, weightedMultiplicity f s g y = (f '' s).indicator h y) ∧
       ∀ x ∈ s, h (f x) = g x := by
   classical
   rcases eq_empty_or_nonempty s with rfl | hsne
   · exact ⟨0, measurable_const, by simp [weightedMultiplicity], by simp⟩
   let _ : Nonempty s := hsne.coe_sort
-  let φ : s → E := s.domRestrict f
-  have hφ : MeasurableEmbedding φ :=
-    MeasureTheory.measurableEmbedding_of_fderivWithin hs
-      (fun x hx => (hf' x hx).hasFDerivWithinAt) hfinj
-  let h : E → ℝ≥0∞ := fun y => g (hφ.invFun y)
+  let φ : s → F := s.domRestrict f
+  have hfcont : ContinuousOn f s := fun x hx => (hf' x hx).continuousAt.continuousWithinAt
+  have hφ : MeasurableEmbedding φ := hfcont.measurableEmbedding hs hfinj
+  let h : F → ℝ≥0∞ := fun y => g (hφ.invFun y)
   have hh : Measurable h :=
     hg.comp (measurable_subtype_coe.comp hφ.measurable_invFun)
   refine ⟨h, hh, ?_, ?_⟩
@@ -567,28 +946,37 @@ private theorem exists_measurable_weightedMultiplicity_eq_indicator
     rw [show f x = φ ⟨x, hx⟩ by rfl, hφ.leftInverse_invFun]
 
 theorem injective_area_formula_weighted
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ℝ≥0∞)
+    (g : E → ℝ≥0∞)
     (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
     (hfinj : InjOn f s) (hg : Measurable g) :
-    ∫⁻ y, weightedMultiplicity f s g y =
-      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    ∫⁻ y : F, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
   classical
   obtain ⟨h, hh, hpoint, hgf⟩ :=
     exists_measurable_weightedMultiplicity_eq_indicator g hs hf' hfinj hg
   calc
-    ∫⁻ y, weightedMultiplicity f s g y =
-        ∫⁻ y, (f '' s).indicator h y := lintegral_congr hpoint
-    _ = ∫⁻ y in f '' s, h y := MeasureTheory.lintegral_indicator
-      (MeasureTheory.measurable_image_of_fderivWithin hs
-        (fun x hx => (hf' x hx).hasFDerivWithinAt) hfinj) h
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * h (f x) :=
+    ∫⁻ y, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ E] =
+        ∫⁻ y, (f '' s).indicator h y ∂μHE[Module.finrank ℝ E] :=
+      lintegral_congr hpoint
+    _ = ∫⁻ y in f '' s, h y ∂μHE[Module.finrank ℝ E] :=
+      MeasureTheory.lintegral_indicator
+      (hs.image_of_continuousOn_injOn
+        (fun x hx => (hf' x hx).continuousAt.continuousWithinAt) hfinj) h
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * h (f x)
+        ∂μHE[Module.finrank ℝ E] :=
       injective_area_formula_image_weighted h hs hf' hfinj
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply setLIntegral_congr_fun hs
       intro x hx
       change ENNReal.ofReal (jacobian f x) * h (f x) =
         g x * ENNReal.ofReal (jacobian f x)
       rw [hgf x hx, mul_comm]
+
+variable {E : Type*}
+  [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+  [MeasurableSpace E] [BorelSpace E]
 
 theorem injective_area_formula_image_weighted_lipschitz
     {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
@@ -731,9 +1119,11 @@ theorem injective_area_formula_weighted_lipschitz
     exact himageHE
   have hformula : ∫⁻ y, weightedMultiplicity f t g y =
       ∫⁻ x in t, g x * ENNReal.ofReal (jacobian f x) :=
-    injective_area_formula_weighted g ht
-      (fun x hx => (show DifferentiableAt ℝ f x from hx.2).hasFDerivAt)
-      (hfinj.mono inter_subset_left) hg
+    by
+      simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+        injective_area_formula_weighted g ht
+          (fun x hx => (show DifferentiableAt ℝ f x from hx.2).hasFDerivAt)
+          (hfinj.mono inter_subset_left) hg
   have hleft : ∫⁻ y, weightedMultiplicity f s g y =
       ∫⁻ y, weightedMultiplicity f t g y := by
     apply lintegral_congr_ae
@@ -907,8 +1297,10 @@ theorem area_formula_of_finite_injective_partition_image_weighted
         lintegral_congr (fun y => hpoint y)
       _ = ∫⁻ y in f '' t i, g y := MeasureTheory.lintegral_indicator (himage i) g
       _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) :=
-        injective_area_formula_image_weighted g (ht i)
-          (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
+        by
+          simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+            injective_area_formula_image_weighted g (ht i)
+              (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
   have hmeas : ∀ i : Fin n, Measurable (fun y => multiplicity f (t i) y * g y) := by
     intro i
     have hpoint : ∀ y, multiplicity f (t i) y * g y = (f '' t i).indicator g y := by
@@ -1104,8 +1496,10 @@ theorem area_formula_of_countable_injective_partition_image_weighted
         lintegral_congr (fun y => hpoint y)
       _ = ∫⁻ y in f '' t i, g y := MeasureTheory.lintegral_indicator (himage i) g
       _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) :=
-        injective_area_formula_image_weighted g (ht i)
-          (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
+        by
+          simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+            injective_area_formula_image_weighted g (ht i)
+              (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
   have hmeas : ∀ i : ℕ, AEMeasurable (fun y => multiplicity f (t i) y * g y)
       (volume : Measure E) := by
     intro i
@@ -1190,8 +1584,9 @@ theorem area_formula_of_countable_injective_partition
   have hpiece : ∀ i, ∫⁻ y, weightedMultiplicity f (t i) g y =
       ∫⁻ x in t i, g x * ENNReal.ofReal (jacobian f x) := by
     intro i
-    exact injective_area_formula_weighted g (ht i)
-      (fun x hx => hf' x (hsubset i x hx)) (hfinj i) hg
+    simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+      injective_area_formula_weighted g (ht i)
+        (fun x hx => hf' x (hsubset i x hx)) (hfinj i) hg
   have hmeas : ∀ i, AEMeasurable (weightedMultiplicity f (t i) g)
       (volume : Measure E) := by
     intro i
@@ -1604,7 +1999,8 @@ theorem area_formula_image_weighted_of_finrank_eq
     (hfinrank : Module.finrank ℝ E = Module.finrank ℝ F)
     (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
     ∫⁻ y, multiplicity f s y * g y ∂μHE[Module.finrank ℝ F] =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
   let e : F ≃ₗᵢ[ℝ] E :=
     (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
   let h : E → E := e ∘ f
@@ -1645,7 +2041,8 @@ theorem area_formula_image_weighted_of_finrank_eq
     (by exact e.contDiff.comp hf) (hg.comp e.symm.continuous.measurable)
   have hformula' :
       ∫⁻ z : E, multiplicity h s z * g' z ∂μHE[Module.finrank ℝ E] =
-        ∫⁻ x in s, ENNReal.ofReal (jacobian h x) * g' (h x) := by
+        ∫⁻ x in s, ENNReal.ofReal (jacobian h x) * g' (h x)
+          ∂μHE[Module.finrank ℝ E] := by
     rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
     exact hformula
   have hleft :
@@ -1662,8 +2059,10 @@ theorem area_formula_image_weighted_of_finrank_eq
       intro y
       rw [hmult]
     _ = ∫⁻ z : E, multiplicity h s z * g' z ∂μHE[Module.finrank ℝ E] := hleft.symm
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian h x) * g' (h x) := hformula'
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian h x) * g' (h x)
+        ∂μHE[Module.finrank ℝ E] := hformula'
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply setLIntegral_congr_fun hs
       intro x hx
       change ENNReal.ofReal (jacobian h x) * g' (h x) =
@@ -1680,7 +2079,8 @@ theorem area_formula_of_finrank_eq
     (hfinrank : Module.finrank ℝ E = Module.finrank ℝ F)
     (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
     ∫⁻ y, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ F] =
-      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
   let e : F ≃ₗᵢ[ℝ] E :=
     (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
   let h : E → E := e ∘ f
@@ -1720,7 +2120,8 @@ theorem area_formula_of_finrank_eq
     (by exact e.contDiff.comp hf) hg
   have hformula' :
       ∫⁻ z : E, weightedMultiplicity h s g z ∂μHE[Module.finrank ℝ E] =
-        ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x) := by
+        ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x)
+          ∂μHE[Module.finrank ℝ E] := by
     rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
     exact hformula
   have hleft :
@@ -1736,8 +2137,10 @@ theorem area_formula_of_finrank_eq
       intro y
       rw [hmult]
     _ = ∫⁻ z : E, weightedMultiplicity h s g z ∂μHE[Module.finrank ℝ E] := hleft.symm
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x) := hformula'
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x)
+        ∂μHE[Module.finrank ℝ E] := hformula'
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply setLIntegral_congr_fun hs
       intro x hx
       change g x * ENNReal.ofReal (jacobian h x) =
@@ -1752,7 +2155,7 @@ theorem area_formula_of_finrank_eq_unweighted
     {f : E → F} {s : Set E} (hfinrank : Module.finrank ℝ E = Module.finrank ℝ F)
     (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) :
     ∫⁻ y, multiplicity f s y ∂μHE[Module.finrank ℝ F] =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) := by
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) ∂μHE[Module.finrank ℝ E] := by
   simpa only [weightedMultiplicity_one, one_mul] using
     (area_formula_of_finrank_eq (f := f) (s := s) (fun _ => (1 : ℝ≥0∞))
       hfinrank hs hf measurable_const)
@@ -1767,7 +2170,8 @@ theorem injective_area_formula_weighted_of_finrank_eq
     (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
     (hfinj : InjOn f s) (hg : Measurable g) :
     ∫⁻ y, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ F] =
-      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
   let e : F ≃ₗᵢ[ℝ] E :=
     (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
   let h : E → E := e ∘ f
@@ -1802,9 +2206,9 @@ theorem injective_area_formula_weighted_of_finrank_eq
   have hformula := injective_area_formula_weighted g hs hh' hhinj hg
   have hformula' :
       ∫⁻ z : E, weightedMultiplicity h s g z ∂μHE[Module.finrank ℝ E] =
-        ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x) := by
-    rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
-    exact hformula
+        ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x)
+          ∂μHE[Module.finrank ℝ E] := by
+    simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using hformula
   have hleft :
       ∫⁻ z : E, weightedMultiplicity h s g z ∂μHE[Module.finrank ℝ E] =
         ∫⁻ y : F, weightedMultiplicity h s g (e y) ∂μHE[Module.finrank ℝ F] := by
@@ -1818,8 +2222,10 @@ theorem injective_area_formula_weighted_of_finrank_eq
       intro y
       rw [hmult]
     _ = ∫⁻ z : E, weightedMultiplicity h s g z ∂μHE[Module.finrank ℝ E] := hleft.symm
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x) := hformula'
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian h x)
+        ∂μHE[Module.finrank ℝ E] := hformula'
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply setLIntegral_congr_fun hs
       intro x hx
       change g x * ENNReal.ofReal (jacobian h x) =
@@ -1836,7 +2242,8 @@ theorem injective_area_formula_image_weighted_of_finrank_eq
     (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g)
     (hfinj : InjOn f s) :
     ∫⁻ y in f '' s, g y ∂μHE[Module.finrank ℝ F] =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
   let e : F ≃ₗᵢ[ℝ] E :=
     (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
   let h : E → E := e ∘ f
@@ -1877,7 +2284,8 @@ theorem injective_area_formula_image_weighted_of_finrank_eq
       apply lintegral_congr
       intro y
       rw [hmult]
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) :=
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] :=
       area_formula_image_weighted_of_finrank_eq g hfinrank hs hf hg
 
 theorem area_formula_unweighted
