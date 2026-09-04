@@ -9,6 +9,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Rademacher interface | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `LipschitzWith.ae_differentiableAt` from Mathlib, consumed by `GMT/Area/Jacobian.lean` | canonical finite-dimensional theorem | reused |
 | Rademacher public wrapper | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `Area.rademacher` in `GMT/Area/Jacobian.lean` | finite-dimensional real normed-space interface | implemented |
 | Lusin closed-set continuity | Chapter 2, Section 1, proof of Theorem 1.5, pp. 43-44 | `StronglyMeasurable.exists_isClosed_continuousOn` in `GMT/Measure/Lusin.lean` | generic weakly regular finite-measure Lusin theorem; dependency for derivative-field continuity in the C1 approximation proof | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| Global Lusin closed-set continuity | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure` in `GMT/Measure/Lusin.lean` | sigma-compact locally finite corollary over arbitrary measurable sets; consumes the finite-measure Lusin theorem on a canonical open spanning sequence | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Hausdorff image estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_image_hmeasure_le` in `GMT/Area/Jacobian.lean` | measure estimate | implemented |
 | Dimension-lowering Lipschitz image-null estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_dimension_lowering_image_null` in `GMT/Area/Jacobian.lean` | target-dimensional image nullity for Lipschitz maps from lower-dimensional finite-dimensional spaces | implemented |
 | Euclidean Hausdorff normalization bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Measure.euclideanHausdorffMeasure_apply_eq_smul` in `GMT/Measure/Hausdorff.lean` | explicit pointwise bridge from normalized `μHE` to raw `μH` | implemented |
@@ -63,7 +64,9 @@ This matrix records the current checked source state against the Chapter 2 contr
 
 The following load-bearing public dependencies are also part of the delivered surface. They are
 supporting API rather than additional Simon headlines:
-`StronglyMeasurable.exists_isClosed_continuousOn`, `Area.jacobian_nonneg`,
+`StronglyMeasurable.exists_isClosed_continuousOn`,
+`StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure`,
+`Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
 `Area.jacobian_continuousLinearMap`, `Area.jacobian_linearMap`, `Area.jacobian_zero`,
 `Area.jacobian_id`, `Area.measurable_jacobian`,
@@ -130,6 +133,13 @@ StronglyMeasurable.exists_isClosed_continuousOn {X Y} [MeasurableSpace X]
   [TopologicalSpace X] [OpensMeasurableSpace X] {mu : Measure X} [mu.WeaklyRegular]
   [PseudoMetricSpace Y] {f : X → Y} (hf : StronglyMeasurable f) {s : Set X}
   (hs : MeasurableSet s) (hmu : mu s ≠ ∞) {ε : ENNReal} (hε : ε ≠ 0) :
+  ∃ t ⊆ s, IsClosed t ∧ mu (s \ t) < ε ∧ ContinuousOn f t
+StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure {X Y}
+  [MeasurableSpace X] [TopologicalSpace X] [OpensMeasurableSpace X]
+  {mu : Measure X} [mu.WeaklyRegular] [SigmaCompactSpace X]
+  [IsLocallyFiniteMeasure mu] [PseudoMetricSpace Y] {f : X → Y}
+  (hf : StronglyMeasurable f) {s : Set X} (hs : MeasurableSet s)
+  {ε : ENNReal} (hε : ε ≠ 0) :
   ∃ t ⊆ s, IsClosed t ∧ mu (s \ t) < ε ∧ ContinuousOn f t
 Area.jacobian {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
   [NormedAddCommGroup F] [InnerProductSpace ℝ F] (f : E → F) (x : E) : ℝ
@@ -521,10 +531,10 @@ countable-partition, square, equal-rank, unweighted, and explicitly image-weight
 checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`.
 The intrinsic coarea-Jacobian API and the shared adjoint `normDet` theorem pass the same declaration
 linters and have the same axiom closure.
-The generic Lusin closed-set continuity theorem is consumed as a lower-layer dependency toward
-Simon 1.5; `lake build GMT.Measure.Lusin` is silent, its exact public signature is recorded above,
-the available declaration linters pass, and its axiom closure is
-`[propext, Classical.choice, Quot.sound]`.
+The generic finite-measure and global locally finite Lusin closed-set continuity theorems are
+consumed as lower-layer dependencies toward Simon 1.5; `lake build GMT.Measure.Lusin` is silent,
+their exact public signatures are recorded above, the available declaration linters pass, and each
+axiom closure is `[propext, Classical.choice, Quot.sound]`.
 External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
 successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a

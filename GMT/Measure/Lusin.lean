@@ -117,3 +117,57 @@ theorem StronglyMeasurable.exists_isClosed_continuousOn
       rw [ENNReal.summable.tsum_sum ENNReal.summable]
       simp [Equiv.optionEquivSumPUnit, add_comm, add_assoc]
     _ < ε := hδsum
+
+theorem StronglyMeasurable.exists_isClosed_continuousOn_of_isLocallyFiniteMeasure
+    [SigmaCompactSpace X] [IsLocallyFiniteMeasure mu] [PseudoMetricSpace Y]
+    {f : X → Y} (hf : StronglyMeasurable f) {s : Set X} (hs : MeasurableSet s)
+    {ε : ℝ≥0∞} (hε : ε ≠ 0) :
+    ∃ t ⊆ s, IsClosed t ∧ mu (s \ t) < ε ∧ ContinuousOn f t := by
+  classical
+  let U := mu.finiteSpanningSetsInOpen
+  obtain ⟨δ, hδpos, hδsum⟩ := ENNReal.exists_pos_sum_of_countable' hε ℕ
+  choose c hcsub hcclosed hcmeasure hccontinuous using fun n : ℕ =>
+    StronglyMeasurable.exists_isClosed_continuousOn hf
+      (hs.inter (U.set_mem n).measurableSet)
+      (ne_top_of_le_ne_top (U.finite n).ne (measure_mono inter_subset_right))
+      (hδpos n).ne'
+  let t : Set X := ⋂ n : ℕ, c n ∪ (U.set n)ᶜ
+  have hcover (x : X) : ∃ n : ℕ, x ∈ U.set n := by
+    have hx : x ∈ ⋃ n : ℕ, U.set n := by
+      rw [U.spanning]
+      exact mem_univ x
+    exact mem_iUnion.1 hx
+  have hts : t ⊆ s := by
+    intro x hx
+    obtain ⟨n, hxn⟩ := hcover x
+    have hxterm := mem_iInter.1 hx n
+    exact (hcsub n (hxterm.resolve_right fun h => h hxn)).1
+  have htclosed : IsClosed t :=
+    isClosed_iInter fun n => (hcclosed n).union (U.set_mem n).isClosed_compl
+  have htcontinuous : ContinuousOn f t := by
+    intro x hx
+    obtain ⟨n, hxn⟩ := hcover x
+    have hxc : x ∈ c n :=
+      (mem_iInter.1 hx n).resolve_right fun h => h hxn
+    apply (hccontinuous n x hxc).mono_of_mem_nhdsWithin
+    apply Filter.mem_of_superset
+      (inter_mem_nhdsWithin t ((U.set_mem n).mem_nhds hxn))
+    intro y hy
+    exact (mem_iInter.1 hy.1 n).resolve_right fun h => h hy.2
+  refine ⟨t, hts, htclosed, ?_, htcontinuous⟩
+  have hsubset : s \ t ⊆ ⋃ n : ℕ, (s ∩ U.set n) \ c n := by
+    intro x hx
+    have hxnot : ¬ ∀ n : ℕ, x ∈ c n ∪ (U.set n)ᶜ := by
+      simpa only [t, mem_iInter] using hx.2
+    obtain ⟨n, hn⟩ := Classical.not_forall.mp hxnot
+    apply mem_iUnion.2
+    refine ⟨n, ⟨⟨hx.1, ?_⟩, ?_⟩⟩
+    · by_contra hxu
+      exact hn (Or.inr hxu)
+    · intro hxc
+      exact hn (Or.inl hxc)
+  calc
+    mu (s \ t) ≤ mu (⋃ n : ℕ, (s ∩ U.set n) \ c n) := measure_mono hsubset
+    _ ≤ ∑' n : ℕ, mu ((s ∩ U.set n) \ c n) := measure_iUnion_le _
+    _ ≤ ∑' n, δ n := ENNReal.tsum_le_tsum fun n => (hcmeasure n).le
+    _ < ε := hδsum
