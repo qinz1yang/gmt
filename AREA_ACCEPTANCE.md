@@ -13,6 +13,9 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Closed differentiability set with continuous derivative | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `LipschitzWith.exists_isClosed_differentiableAt_continuousOn_fderiv` in `GMT/Analysis/Lipschitz.lean` | finite-dimensional Rademacher-Lusin interface; produces a closed set with arbitrarily small complement on which the map is differentiable and its derivative is continuous | implemented; consumes Rademacher and global Lusin, module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Closed Whitney one-jet extraction | Chapter 2, Section 1, proof of Theorem 1.5 and Theorem 1.6, pp. 42-44 | `exists_closed_measure_sdiff_lt_isWhitneyOneJetOn` in `GMT/Analysis/Whitney.lean` | generic locally finite extraction from a continuous derivative field; produces the local-on-compacts strict two-point compatibility required by Whitney extension | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Lipschitz Whitney one-jet extraction | Chapter 2, Section 1, proof of Theorem 1.5, p. 44 | `LipschitzWith.exists_isClosed_isWhitneyOneJetOn` in `GMT/Analysis/Whitney.lean` | finite-dimensional Rademacher-Lusin-Egoroff interface; produces a closed co-small set carrying the canonical derivative Whitney one-jet | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| Whitney C1 extension | Chapter 2, Section 1, Theorem 1.6, pp. 42-43 | `IsWhitneyOneJetOn.exists_contDiff` in `GMT/Analysis/Whitney.lean` | canonical finite-dimensional closed-set extension preserving the one-jet values and derivatives | implemented; all cover, partition, and estimate machinery is private; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| Closed-set C1 Lipschitz approximation | Chapter 2, Section 1, Theorem 1.5, pp. 42-44 | `LipschitzWith.exists_contDiff_eqOn_fderiv` in `GMT/Analysis/Whitney.lean` | finite-dimensional vector-valued primary producing a closed co-small set on which both values and Fréchet derivatives agree | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
+| C1 Lipschitz approximation | Chapter 2, Section 1, Theorem 1.5, pp. 42-44 | `LipschitzWith.exists_contDiff_measure_ne_lt` in `GMT/Analysis/Whitney.lean` | Simon-shaped mismatch-set corollary, generalized intrinsically to finite-dimensional vector-valued maps | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Hausdorff image estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_image_hmeasure_le` in `GMT/Area/Jacobian.lean` | measure estimate | implemented |
 | Dimension-lowering Lipschitz image-null estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_dimension_lowering_image_null` in `GMT/Area/Jacobian.lean` | target-dimensional image nullity for Lipschitz maps from lower-dimensional finite-dimensional spaces | implemented |
 | Euclidean Hausdorff normalization bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Measure.euclideanHausdorffMeasure_apply_eq_smul` in `GMT/Measure/Hausdorff.lean` | explicit pointwise bridge from normalized `μHE` to raw `μH` | implemented |
@@ -75,6 +78,9 @@ supporting API rather than additional Simon headlines:
 `HasStrictFDerivWithinAt`, `IsWhitneyOneJetOn`,
 `exists_closed_measure_sdiff_lt_isWhitneyOneJetOn`,
 `LipschitzWith.exists_isClosed_isWhitneyOneJetOn`,
+`IsWhitneyOneJetOn.exists_contDiff`,
+`LipschitzWith.exists_contDiff_eqOn_fderiv`,
+`LipschitzWith.exists_contDiff_measure_ne_lt`,
 `ApproximatesLinearOn.ae_norm_fderiv_sub_le`,
 `Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
@@ -105,15 +111,13 @@ supporting API rather than additional Simon headlines:
 `Area.linear_coarea_formula_surjective_weighted`, `Area.linear_coarea_formula_range`,
 `Area.linear_coarea_formula_range_weighted`, `Area.linear_coarea_factor_eq_normDet_adjoint`,
 `Area.linear_coarea_factor_sq`, and `Area.linear_coarea_restricted_factor_sq`.
-Their exact checked types are recorded below with the
-headline signatures; all are in the same three Area modules and are consumed by the area/coarea
-proof forest.
+Their exact checked types are recorded below with the headline signatures; each remains in its stated
+topic home and is consumed by the area/coarea proof forest.
 
 The current source therefore does not satisfy the full suite contract. The Lipschitz
-dimension-lowering image-null estimate is now available as a reusable Hausdorff-measure leaf. In particular, the
-general coarea formula, the C¹ approximation theorem
-(Simon 1.5), the Hausdorff-fiber estimate (Simon 1.9), and the m < n Sard-type fiber decomposition
-remain open.
+dimension-lowering image-null estimate and the C¹ approximation theorem are now available as reusable
+lower-layer results. The general coarea formula, the Hausdorff-fiber estimate (Simon 1.9), and the
+m < n Sard-type fiber decomposition remain open.
 
 ## Exact checked signatures
 
@@ -179,6 +183,25 @@ LipschitzWith.exists_isClosed_isWhitneyOneJetOn {E F}
   {f : E → F} {K : NNReal} (hf : LipschitzWith K f)
   {ε : ENNReal} (hε : ε ≠ 0) :
   ∃ s, IsClosed s ∧ Measure.addHaar sᶜ < ε ∧ IsWhitneyOneJetOn f (fderiv ℝ f) s
+IsWhitneyOneJetOn.exists_contDiff {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [NormedSpace ℝ F] {f : E → F} {f' : E → E →L[ℝ] F}
+  {s : Set E} (h : IsWhitneyOneJetOn f f' s) (hs : IsClosed s) :
+  ∃ g, ContDiff ℝ 1 g ∧ EqOn g f s ∧ EqOn (fderiv ℝ g) f' s
+LipschitzWith.exists_contDiff_eqOn_fderiv {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [NormedSpace ℝ F] [FiniteDimensional ℝ F]
+  [MeasurableSpace E] [BorelSpace E] {f : E → F} {K : NNReal}
+  (hf : LipschitzWith K f) {ε : ENNReal} (hε : ε ≠ 0) :
+  ∃ g s, IsClosed s ∧ Measure.addHaar sᶜ < ε ∧ ContDiff ℝ 1 g ∧
+    EqOn g f s ∧ EqOn (fderiv ℝ g) (fderiv ℝ f) s
+LipschitzWith.exists_contDiff_measure_ne_lt {E F}
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [NormedSpace ℝ F] [FiniteDimensional ℝ F]
+  [MeasurableSpace E] [BorelSpace E] {f : E → F} {K : NNReal}
+  (hf : LipschitzWith K f) {ε : ENNReal} (hε : ε ≠ 0) :
+  ∃ g, ContDiff ℝ 1 g ∧
+    Measure.addHaar ({x | f x ≠ g x} ∪ {x | fderiv ℝ f x ≠ fderiv ℝ g x}) < ε
 ApproximatesLinearOn.ae_norm_fderiv_sub_le {E F}
   [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
   [NormedAddCommGroup F] [NormedSpace ℝ F] [MeasurableSpace E] [BorelSpace E]
@@ -602,10 +625,11 @@ The finite-dimensional closed differentiability-set theorem composes Rademacher 
 Lusin theorem. `lake build GMT.Analysis.Lipschitz` is silent, its exact signature is recorded above,
 the available declaration linters pass, and its axiom closure is
 `[propext, Classical.choice, Quot.sound]`.
-The rectangular `ApproximatesLinearOn` derivative estimate and the Whitney one-jet definitions,
-generic locally finite extraction theorem, and Lipschitz corollary have the exact signatures recorded
-above. `lake build GMT.Analysis.Lipschitz GMT.Analysis.Whitney` is silent, all available declaration
-linters pass, and every axiom closure is `[propext, Classical.choice, Quot.sound]`.
+The rectangular `ApproximatesLinearOn` derivative estimate, Whitney one-jet definitions and extraction
+theorems, closed-set extension theorem, finite-dimensional approximation engine, and Simon-shaped
+corollary have the exact signatures recorded above. `lake build GMT.Analysis.Lipschitz
+GMT.Analysis.Whitney` is silent, all available declaration linters pass, and every checked axiom
+closure is `[propext, Classical.choice, Quot.sound]`.
 External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
 successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a
@@ -619,9 +643,9 @@ were checked in the same probe and axiom driver.
 `prove-theorem-suite`: **Not accepted**. The finite headline suite is incomplete: the
 square- and equal-rank general non-injective source-weighted area formulas, the equal-rank injective
 source-weighted theorem, and the unweighted, weighted, and
-rank-deficient linear coarea formulas are present, and Simon's 1.8 fiber-cardinality estimate is now
-implemented, but the genuine higher-codimension area formula, general coarea branch, Simon's 1.5
-approximation theorem, 1.9 Hausdorff-fiber estimate, and the m < n Sard decomposition remain open.
+rank-deficient linear coarea formulas and Simon's 1.5 and 1.8 results are present, but the genuine
+higher-codimension area formula, general coarea branch, Simon's 1.9 Hausdorff-fiber estimate, and the
+m < n Sard decomposition remain open.
 
 `audit-lean-theorem-suite`: **Not accepted**. The checked source snapshot has clean available
 compiler, linter, and axiom checks for the repaired source-weighted area layer, but it fails the
