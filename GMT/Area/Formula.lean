@@ -88,6 +88,42 @@ theorem injective_area_formula
       intro x hx
       simp [Area.jacobian, (hf' x hx).fderiv, LinearMap.normDet_eq_abs_det]
 
+theorem injective_area_formula_of_finrank_eq
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E}
+    (hfinrank : Module.finrank ℝ E = Module.finrank ℝ F)
+    (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+    (hf : InjOn f s) :
+    μHE[Module.finrank ℝ E] (f '' s) =
+      ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet) := by
+  let e : F ≃ₗᵢ[ℝ] E :=
+    (stdOrthonormalBasis ℝ F).equiv (stdOrthonormalBasis ℝ E) (finCongr hfinrank.symm)
+  let g : E → E := fun x => e (f x)
+  let g' : E → E →L[ℝ] E := fun x => e.toContinuousLinearMap.comp (f' x)
+  have hg' : ∀ x ∈ s, HasFDerivAt g (g' x) x := by
+    intro x hx
+    exact e.toContinuousLinearMap.hasFDerivAt.comp x (hf' x hx)
+  have hginj : InjOn g s := fun x hx y hy hxy => hf hx hy (e.injective hxy)
+  have H := injective_area_formula (f := g) (f' := g') hs hg' hginj
+  have himage : g '' s = e '' (f '' s) := by
+    rw [show g = e ∘ f by rfl, image_comp]
+  have hmeasure : μHE[Module.finrank ℝ E] (g '' s) = μHE[Module.finrank ℝ E] (f '' s) := by
+    rw [himage, e.isometry.euclideanHausdorffMeasure_image]
+  have hderiv : ∀ x ∈ s, (g' x).toLinearMap.normDet = (f' x).toLinearMap.normDet := by
+    intro x hx
+    change (e.toLinearIsometry.toLinearMap ∘ₗ (f' x).toLinearMap).normDet =
+      (f' x).toLinearMap.normDet
+    rw [LinearMap.normDet_comp_of_finrank_eq _ _ hfinrank]
+    simp [e.toLinearIsometry.normDet_eq_one]
+  rw [← hmeasure, H]
+  apply setLIntegral_congr_fun hs
+  intro x hx
+  change ENNReal.ofReal (jacobian g x) = _
+  rw [jacobian_of_hasFDerivAt (hg' x hx), hderiv x hx]
+
 theorem injective_area_formula_weighted
     {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ℝ≥0∞)
     (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)

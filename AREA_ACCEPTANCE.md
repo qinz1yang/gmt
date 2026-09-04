@@ -19,6 +19,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
 | Injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula` in `GMT/Area/Formula.lean` | square-dimensional differentiable interface | implemented with equal domain/codomain |
+| Equal-rank injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula_of_finrank_eq` in `GMT/Area/Formula.lean` | intrinsic transport of the injective formula across different equal-rank Euclidean spaces | implemented |
 | Weighted injective area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted` in `GMT/Area/Formula.lean` | square-dimensional weighted interface | implemented with equal domain/codomain |
 | General non-injective area formula | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula` in `GMT/Area/Formula.lean` | canonical measurable weighted fiber-multiplicity identity | implemented for square-dimensional C¹ maps |
 | General non-injective area formula, unweighted | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula_unweighted` in `GMT/Area/Formula.lean` | unweighted corollary of the canonical weighted identity | implemented for square-dimensional C¹ maps |
@@ -157,6 +158,15 @@ Area.injective_area_formula {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   {f : E → E} {f' : E →L[ℝ] E} {s : Set E} (hs : MeasurableSet s)
   (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hf : Set.InjOn f s) :
   μHE[finrank ℝ E] (f '' s) = ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+  {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E}
+  (hfinrank : finrank ℝ E = finrank ℝ F) (hs : MeasurableSet s)
+  (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hf : Set.InjOn f s) :
+  μHE[finrank ℝ E] (f '' s) =
+    ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
 Area.injective_area_formula_weighted {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
   {f : E → E} {f' : E →L[ℝ] E} {s : Set E} (g : E → ENNReal)
