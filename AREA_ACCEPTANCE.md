@@ -9,6 +9,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Rademacher interface | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `LipschitzWith.ae_differentiableAt` from Mathlib, consumed by `GMT/Area/Jacobian.lean` | canonical finite-dimensional theorem | reused |
 | Rademacher public wrapper | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `Area.rademacher` in `GMT/Area/Jacobian.lean` | finite-dimensional real normed-space interface | implemented |
 | Hausdorff image estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_image_hmeasure_le` in `GMT/Area/Jacobian.lean` | measure estimate | implemented |
+| Dimension-lowering Lipschitz image-null estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_dimension_lowering_image_null` in `GMT/Area/Jacobian.lean` | target-dimensional image nullity for Lipschitz maps from lower-dimensional finite-dimensional spaces | implemented |
 | Euclidean Hausdorff normalization bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Measure.euclideanHausdorffMeasure_apply_eq_smul` in `GMT/Measure/Hausdorff.lean` | explicit pointwise bridge from normalized `μHE` to raw `μH` | implemented |
 | Hausdorff image measurability | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `LipschitzOnWith.nullMeasurableSet_image_hausdorffMeasure` in `GMT/Measure/Hausdorff.lean` | completion-aware measurable-image interface for finite-measure source sets | implemented |
 | Hausdorff fiber multiplicity measurability | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `LipschitzOnWith.aemeasurable_encard_fiber` in `GMT/Measure/Hausdorff.lean` | measurable extended-cardinality fibers for finite Hausdorff source sets | implemented |
@@ -19,12 +20,19 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
 | Injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula` in `GMT/Area/Formula.lean` | square-dimensional differentiable interface | implemented with equal domain/codomain |
+| Lipschitz injective weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted_lipschitz` in `GMT/Area/Formula.lean` | square-dimensional source-weighted fiber-sum identity for globally Lipschitz injective maps, with Rademacher null-set transfer | implemented |
+| Lipschitz injective area formula, unweighted | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula_lipschitz` in `GMT/Area/Formula.lean` | unweighted square-dimensional globally Lipschitz injective corollary | implemented |
 | Equal-rank injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula_of_finrank_eq` in `GMT/Area/Formula.lean` | intrinsic transport of the injective formula across different equal-rank Euclidean spaces | implemented |
-| Weighted injective area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted` in `GMT/Area/Formula.lean` | square-dimensional weighted interface | implemented with equal domain/codomain |
-| General non-injective area formula | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula` in `GMT/Area/Formula.lean` | canonical measurable weighted fiber-multiplicity identity | implemented for square-dimensional C¹ maps |
+| Equal-rank general area formula | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_finrank_eq` in `GMT/Area/Formula.lean` | non-injective source-weighted fiber-sum identity across different equal-rank Euclidean spaces | implemented |
+| Equal-rank general area formula, unweighted | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula_of_finrank_eq_unweighted` in `GMT/Area/Formula.lean` | unweighted equal-rank corollary | implemented |
+| Equal-rank injective weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted_of_finrank_eq` in `GMT/Area/Formula.lean` | source-weighted fiber-sum identity across equal-rank Euclidean spaces | implemented |
+| Weighted injective area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted` in `GMT/Area/Formula.lean` | square-dimensional source-weighted fiber-sum interface | implemented with equal domain/codomain |
+| General non-injective area formula | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula` in `GMT/Area/Formula.lean` | canonical measurable source-weighted fiber-sum identity | implemented for square-dimensional C¹ maps |
 | General non-injective area formula, unweighted | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.area_formula_unweighted` in `GMT/Area/Formula.lean` | unweighted corollary of the canonical weighted identity | implemented for square-dimensional C¹ maps |
-| General weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.area_formula` in `GMT/Area/Formula.lean` | nonnegative measurable weight on the target | implemented for square-dimensional C¹ maps |
+| General weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.area_formula` in `GMT/Area/Formula.lean` | nonnegative measurable weight on the source, summed over each fiber | implemented for square-dimensional C¹ maps |
 | Fiber multiplicity | Chapter 2, Section 3, formula 3.4, p. 54 | `Area.multiplicity` in `GMT/Area/Formula.lean` | consumer-visible fiber object | implemented |
+| Weighted fiber multiplicity | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.weightedMultiplicity` in `GMT/Area/Formula.lean` | consumer-visible source-weighted fiber sum | implemented |
+| General image-weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.area_formula_image_weighted` in `GMT/Area/Formula.lean` | target-weight specialization with multiplicity | implemented for square-dimensional C¹ maps |
 | Scalar monotone area formula | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.monotone_area_formula_real` in `GMT/Area/Formula.lean` | non-injective real-map weighted formula via monotone decomposition | implemented as a scalar corollary |
 | Scalar monotone area formula, unweighted | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.monotone_area_formula_real_unweighted` in `GMT/Area/Formula.lean` | scalar image measure identity | implemented as a scalar corollary |
 | Scalar monotone area formula with multiplicity | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.monotone_area_formula_real_with_multiplicity` in `GMT/Area/Formula.lean` | explicit fiber-counting identity for monotone real maps | implemented as a scalar non-injective corollary |
@@ -43,8 +51,8 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Coarea factor square | Chapter 2, Section 6, formula 6.2, p. 66 | `Area.linear_coarea_factor_sq` in `GMT/Area/Coarea.lean` | identifies the square of the intrinsic coarea factor with the determinant of `L ∘ₗ L.adjoint` | implemented |
 | Restricted coarea factor square | Chapter 2, Section 6, formula 6.2, p. 66 | `Area.linear_coarea_restricted_factor_sq` in `GMT/Area/Coarea.lean` | supporting Gram-operator identity on the kernel orthogonal complement | implemented |
 | Dimension-lowering C¹ image-null corollary | Chapter 2, Section 6, formula 6.4, pp. 66-67 | `Area.dimension_lowering_image_null` in `GMT/Area/Coarea.lean` | full image nullity when domain dimension is smaller than codomain | implemented via Hausdorff-dimension bound; not the coarea-derived Sard proof |
-| Finite-partition area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_finite_injective_partition` in `GMT/Area/Formula.lean` | reusable finite injective-partition engine for the general formula | implemented |
-| Countable-partition area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_countable_injective_partition` in `GMT/Area/Formula.lean` | reusable countable injective-partition engine for the general formula | implemented |
+| Finite-partition image-weighted area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_finite_injective_partition_image_weighted` in `GMT/Area/Formula.lean` | reusable finite injective-partition engine for target weights | implemented |
+| Countable-partition area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_countable_injective_partition` in `GMT/Area/Formula.lean` | reusable countable injective-partition engine for source-weighted fiber sums | implemented |
 | General coarea formula | Chapter 2, Section 6, formula 6.3, p. 66 | no declaration | nonlinear fiber integral | not implemented |
 | C1 Sard-type consequence | Chapter 2, Section 6, formula 6.4, pp. 66-67 | `Area.critical_image_null` in `GMT/Area/Coarea.lean` | square-dimensional critical-image null result | partial only; not Simon's m < n fiber conclusion |
 
@@ -53,10 +61,19 @@ supporting API rather than additional Simon headlines: `Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
 `Area.jacobian_continuousLinearMap`, `Area.jacobian_linearMap`, `Area.jacobian_zero`,
 `Area.jacobian_id`, `Area.multiplicity_eq_zero_of_not_mem_image`,
-`Area.multiplicity_eq_one_of_injOn`, `Area.antitone_area_formula_real`, and
-`Area.antitone_area_formula_real_unweighted`, `Area.area_formula_of_finite_injective_partition`,
-`Area.area_formula_of_countable_injective_partition`, `Area.area_formula`, and
-`Area.area_formula_unweighted`, `Area.linear_coarea_formula_surjective`,
+`Area.multiplicity_eq_one_of_injOn`, `Area.weightedMultiplicity`,
+`Area.weightedMultiplicity_one`, `Area.weightedMultiplicity_comp`,
+`Area.antitone_area_formula_real`, `Area.antitone_area_formula_real_unweighted`,
+`Area.area_formula_of_finite_injective_partition_image_weighted`,
+`Area.area_formula_of_countable_injective_partition`,
+`Area.area_formula_of_countable_injective_partition_image_weighted`, `Area.area_formula`,
+`Area.area_formula_image_weighted`, `Area.area_formula_unweighted`,
+`Area.injective_area_formula_weighted_lipschitz`,
+`Area.injective_area_formula_image_weighted_lipschitz`,
+`Area.injective_area_formula_lipschitz`, `Area.area_formula_of_finrank_eq`,
+`Area.area_formula_image_weighted_of_finrank_eq`, `Area.area_formula_of_finrank_eq_unweighted`,
+`Area.injective_area_formula_weighted_of_finrank_eq`,
+`Area.injective_area_formula_image_weighted_of_finrank_eq`, `Area.linear_coarea_formula_surjective`,
 `Area.linear_coarea_formula_surjective_weighted`, `Area.linear_coarea_formula_range`,
 `Area.linear_coarea_formula_range_weighted`, `Area.linear_coarea_factor_eq_normDet_adjoint`,
 `Area.linear_coarea_factor_sq`, and `Area.linear_coarea_restricted_factor_sq`.
@@ -64,7 +81,8 @@ Their exact checked types are recorded below with the
 headline signatures; all are in the same three Area modules and are consumed by the area/coarea
 proof forest.
 
-The current source therefore does not satisfy the full suite contract. In particular, the
+The current source therefore does not satisfy the full suite contract. The Lipschitz
+dimension-lowering image-null estimate is now available as a reusable Hausdorff-measure leaf. In particular, the
 general coarea formula, the C¹ approximation theorem
 (Simon 1.5), the Hausdorff-fiber estimate (Simon 1.9), and the m < n Sard-type fiber decomposition
 remain open.
@@ -83,6 +101,12 @@ Area.lipschitz_image_hmeasure_le {X Y} [EMetricSpace X] [EMetricSpace Y]
   [MeasurableSpace X] [BorelSpace X] [MeasurableSpace Y] [BorelSpace Y]
   {f : X → Y} {K : NNReal} (hf : LipschitzWith K f) {d : ℝ} (hd : 0 ≤ d) (s : Set X) :
   μH[d] (f '' s) ≤ ↑K ^ d * μH[d] s
+Area.lipschitz_dimension_lowering_image_null {E F} [NormedAddCommGroup E]
+  [NormedSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [NormedSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {K : NNReal}
+  (hf : LipschitzWith K f) (hEF : finrank ℝ E < finrank ℝ F) :
+  μHE[finrank ℝ F] (Set.range f) = 0
 Area.rademacher {E F} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
   [NormedAddCommGroup F] [NormedSpace ℝ F] [FiniteDimensional ℝ F]
   [MeasurableSpace E] [BorelSpace E] {f : E → F} {K : NNReal} (hf : LipschitzWith K f) :
@@ -155,8 +179,24 @@ Area.linear_area_formula_eq_volume {E F} [NormedAddCommGroup E] [InnerProductSpa
   μHE[finrank ℝ E] (L '' s) = ENNReal.ofReal L.normDet * volume s
 Area.injective_area_formula {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-  {f : E → E} {f' : E →L[ℝ] E} {s : Set E} (hs : MeasurableSet s)
+  {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (hs : MeasurableSet s)
   (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hf : Set.InjOn f s) :
+  μHE[finrank ℝ E] (f '' s) = ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_weighted_lipschitz {E} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  {f : E → E} {s : Set E} {K : NNReal} (g : E → ENNReal) (hs : MeasurableSet s)
+  (hf : LipschitzWith K f) (hfinj : Set.InjOn f s) (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_image_weighted_lipschitz {E} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  {f : E → E} {s : Set E} {K : NNReal} (g : E → ENNReal) (hs : MeasurableSet s)
+  (hf : LipschitzWith K f) (hfinj : Set.InjOn f s) :
+  ∫⁻ y in f '' s, g y = ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x) * g (f x)
+Area.injective_area_formula_lipschitz {E} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  {f : E → E} {s : Set E} {K : NNReal} (hs : MeasurableSet s)
+  (hf : LipschitzWith K f) (hfinj : Set.InjOn f s) :
   μHE[finrank ℝ E] (f '' s) = ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x)
 Area.injective_area_formula_of_finrank_eq {E F} [NormedAddCommGroup E]
   [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
@@ -169,10 +209,23 @@ Area.injective_area_formula_of_finrank_eq {E F} [NormedAddCommGroup E]
     ∫⁻ x in s, ENNReal.ofReal ((f' x).toLinearMap.normDet)
 Area.injective_area_formula_weighted {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-  {f : E → E} {f' : E →L[ℝ] E} {s : Set E} (g : E → ENNReal)
-  (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hf : Set.InjOn f s) :
+  {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ENNReal)
+  (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+  (hfinj : Set.InjOn f s) (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_image_weighted {E} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (g : E → ENNReal)
+  (hs : MeasurableSet s) (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x)
+  (hfinj : Set.InjOn f s) :
   ∫⁻ y in f '' s, g y = ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x) * g (f x)
 Area.multiplicity {E F} (f : E → F) (s : Set E) (y : F) : ENNReal
+Area.weightedMultiplicity {E F} (f : E → F) (s : Set E) (g : E → ENNReal) (y : F) : ENNReal
+Area.weightedMultiplicity_one {E F} (f : E → F) (s : Set E) (y : F) :
+  Area.weightedMultiplicity f s (fun _ => 1) y = Area.multiplicity f s y
+Area.weightedMultiplicity_comp {E F} (f : E → F) (s : Set E) (g : F → ENNReal) (y : F) :
+  Area.weightedMultiplicity f s (g ∘ f) y = Area.multiplicity f s y * g y
 Area.multiplicity_eq_zero_of_not_mem_image {E F} {f : E → F} {s : Set E} {y : F}
   (hy : y ∉ f '' s) : Area.multiplicity f s y = 0
 Area.multiplicity_eq_one_of_injOn {E F} {f : E → F} {s : Set E} (hf : Set.InjOn f s)
@@ -193,7 +246,7 @@ Area.monotone_area_formula_real_with_multiplicity {f f' : ℝ → ℝ} {s : Set 
   (g : ℝ → ENNReal) (hs : MeasurableSet s)
   (hf' : ∀ x ∈ s, HasDerivWithinAt f (f' x) s x) (hf : MonotoneOn f s) :
   ∫⁻ y, Area.multiplicity f s y * g y = ∫⁻ x in s, ENNReal.ofReal (f' x) * g (f x)
-Area.area_formula_of_finite_injective_partition {E} [NormedAddCommGroup E]
+Area.area_formula_of_finite_injective_partition_image_weighted {E} [NormedAddCommGroup E]
   [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
   {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (n : ℕ) (t : Fin n → Set E)
   (g : E → ENNReal) (hpart : ⋃ i, t i = s) (ht : ∀ i, MeasurableSet (t i))
@@ -206,12 +259,71 @@ Area.area_formula {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
   {f : E → E} {s : Set E} (g : E → ENNReal) (hs : MeasurableSet s)
   (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.area_formula_image_weighted {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+  {f : E → E} {s : Set E} (g : E → ENNReal) (hs : MeasurableSet s)
+  (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
   ∫⁻ y, Area.multiplicity f s y * g y =
+    ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x) * g (f x)
+Area.area_formula_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {s : Set E}
+  (g : E → ENNReal) (hfinrank : finrank ℝ E = finrank ℝ F)
+  (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y ∂μHE[finrank ℝ F] =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.area_formula_image_weighted_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {s : Set E}
+  (g : F → ENNReal) (hfinrank : finrank ℝ E = finrank ℝ F)
+  (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g) :
+  ∫⁻ y, Area.multiplicity f s y * g y ∂μHE[finrank ℝ F] =
+    ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x) * g (f x)
+Area.area_formula_of_finrank_eq_unweighted {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {s : Set E}
+  (hfinrank : finrank ℝ E = finrank ℝ F) (hs : MeasurableSet s)
+  (hf : ContDiff ℝ 1 f) :
+  ∫⁻ y, Area.multiplicity f s y ∂μHE[finrank ℝ F] =
+    ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_weighted_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+  {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E} (g : E → ENNReal)
+  (hfinrank : finrank ℝ E = finrank ℝ F) (hs : MeasurableSet s)
+  (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : Set.InjOn f s)
+  (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y ∂μHE[finrank ℝ F] =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.injective_area_formula_image_weighted_of_finrank_eq {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {s : Set E}
+  (g : F → ENNReal) (hfinrank : finrank ℝ E = finrank ℝ F)
+  (hs : MeasurableSet s) (hf : ContDiff ℝ 1 f) (hg : Measurable g)
+  (hfinj : Set.InjOn f s) :
+  ∫⁻ y in f '' s, g y ∂μHE[finrank ℝ F] =
     ∫⁻ x in s, ENNReal.ofReal (Area.jacobian f x) * g (f x)
 Area.area_formula_of_countable_injective_partition {E} [NormedAddCommGroup E]
   [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
   {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (t : ℕ → Set E) (g : E → ENNReal)
   (hpart : ⋃ i, t i = s) (ht : ∀ i, MeasurableSet (t i))
+  (hdisj : ∀ ⦃i j⦄, i ≠ j → Disjoint (t i) (t j))
+  (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : ∀ i, InjOn f (t i))
+  (hg : Measurable g) :
+  ∫⁻ y, Area.weightedMultiplicity f s g y =
+    ∫⁻ x in s, g x * ENNReal.ofReal (Area.jacobian f x)
+Area.area_formula_of_countable_injective_partition_image_weighted {E}
+  [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+  [MeasurableSpace E] [BorelSpace E] {f : E → E} {f' : E → E →L[ℝ] E}
+  {s : Set E} (t : ℕ → Set E) (g : E → ENNReal) (hpart : ⋃ i, t i = s)
+  (ht : ∀ i, MeasurableSet (t i))
   (hdisj : ∀ ⦃i j⦄, i ≠ j → Disjoint (t i) (t j))
   (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : ∀ i, InjOn f (t i))
   (hg : Measurable g) :
@@ -319,20 +431,20 @@ Area.dimension_lowering_image_null {E F} [NormedAddCommGroup E] [InnerProductSpa
   (hEF : finrank ℝ E < finrank ℝ F) : μHE[finrank ℝ F] (Set.range f) = 0
 Area.critical_image_null {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-  {f : E → E} {s : Set E} {f' : E →L[ℝ] E}
+  {f : E → E} {s : Set E} {f' : E → E →L[ℝ] E}
   (hf' : ∀ x ∈ s, HasFDerivWithinAt f (f' x) s x)
   (hcrit : ∀ x ∈ s, (f' x).det = 0) : volume (f '' s) = 0
 ```
 
-Fresh evidence for this snapshot: `lake build GMT.Measure.Hausdorff GMT.Area.Jacobian GMT.Area.Formula GMT.Area.Coarea GMT`
-and `lake build GMT` both succeed; external consumer probes for the arbitrary-surjective,
-range-valued, Hausdorff-fiber, and equal-rank injective declarations succeed; the declaration driver
-passes `unusedArguments`, `simpNF`, and `synTaut` for the new declarations and every previously
-listed declaration; every checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`;
-and `git diff --check` succeeds. External identity and subsingleton-codomain edge probes for the
-surjective theorem also elaborate successfully. The requested
+Fresh evidence for this snapshot: `lake build GMT.Area.Formula GMT.Area.Coarea GMT` succeeds; an
+external declaration driver checks the source-weighted multiplicity, injective, Lipschitz,
+countable-partition, square, equal-rank, unweighted, and explicitly image-weighted declarations. The available
+`unusedArguments`, `simpNF`, and `synTaut` linters pass for every repaired declaration, and every
+checked axiom closure is exactly `[propext, Classical.choice, Quot.sound]`.
+External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
+successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a
-passing check without changing the environment. The added finite-partition engine was separately
+passing check without changing the environment. The finite-partition image-weighted engine was separately
 checked with `#check`, the available declaration linters, its axiom closure, the aggregate build,
 and an external consumer probe in `/tmp/consumer.lean`; the final general and unweighted headlines
 were checked in the same probe and axiom driver.
@@ -340,13 +452,15 @@ were checked in the same probe and axiom driver.
 ## Official workflow verdicts
 
 `prove-theorem-suite`: **Not accepted**. The finite headline suite is incomplete: the
-square-dimensional general non-injective weighted area formula and the unweighted, weighted, and
+square- and equal-rank general non-injective source-weighted area formulas, the equal-rank injective
+source-weighted theorem, and the unweighted, weighted, and
 rank-deficient linear coarea formulas are present, and Simon's 1.8 fiber-cardinality estimate is now
-implemented, but the general coarea branch, Simon's 1.5 approximation theorem, 1.9 Hausdorff-fiber
-estimate, and the m < n Sard decomposition remain open.
+implemented, but the genuine higher-codimension area formula, general coarea branch, Simon's 1.5
+approximation theorem, 1.9 Hausdorff-fiber estimate, and the m < n Sard decomposition remain open.
 
 `audit-lean-theorem-suite`: **Not accepted**. The checked source snapshot has clean available
-compiler, aggregate-build, linter, axiom, and diff checks, but it fails the mathematical completeness
-gate for the same unresolved headlines despite the new Hausdorff-fiber and equal-rank area layers.
+compiler, linter, and axiom checks for the repaired source-weighted area layer, but it fails the
+mathematical completeness gate for the same unresolved headlines despite the new Hausdorff-fiber,
+equal-rank, and dimension-lowering image-null layers.
 The `defLemma` linter named by the contract is unavailable in this Mathlib revision; the available
 declaration linters pass.

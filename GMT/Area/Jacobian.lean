@@ -21,6 +21,29 @@ theorem lipschitz_image_hmeasure_le {X Y : Type*} [EMetricSpace X] [EMetricSpace
     μH[d] (f '' s) ≤ (K : ℝ≥0∞) ^ d * μH[d] s := by
   exact hf.hausdorffMeasure_image_le hd s
 
+theorem lipschitz_dimension_lowering_image_null
+    {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [NormedSpace ℝ F]
+    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ E < Module.finrank ℝ F) :
+    μHE[Module.finrank ℝ F] (Set.range f) = 0 := by
+  have hdim : (Module.finrank ℝ E : ℝ) < Module.finrank ℝ F := by
+    exact_mod_cast hEF
+  have hsource : μH[(Module.finrank ℝ F : ℝ)] (Set.univ : Set E) = 0 := by
+    rw [Real.hausdorffMeasure_of_finrank_lt hdim]
+    simp
+  have himage : μH[(Module.finrank ℝ F : ℝ)] (Set.range f) ≤
+      (K : ℝ≥0∞) ^ (Module.finrank ℝ F : ℝ) *
+        μH[(Module.finrank ℝ F : ℝ)] (Set.univ : Set E) := by
+    simpa only [Set.image_univ] using
+      hf.hausdorffMeasure_image_le (show (0 : ℝ) ≤ Module.finrank ℝ F by positivity) Set.univ
+  have hzero : μH[(Module.finrank ℝ F : ℝ)] (Set.range f) = 0 := by
+    rw [hsource, mul_zero] at himage
+    exact nonpos_iff_eq_zero.mp himage
+  rw [Measure.euclideanHausdorffMeasure_def, Measure.smul_apply, hzero, smul_zero]
+
 theorem rademacher {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     [FiniteDimensional ℝ E] [NormedAddCommGroup F] [NormedSpace ℝ F]
     [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
