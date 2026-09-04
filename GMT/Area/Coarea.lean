@@ -1,4 +1,5 @@
 import GMT.Area.Formula
+import Mathlib.Analysis.InnerProductSpace.ProdL2
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.MeasureTheory.Measure.Haar.InnerProductSpace
 import Mathlib.Topology.MetricSpace.HausdorffDimension
@@ -151,6 +152,103 @@ theorem linear_coarea_factor_eq_normDet_adjoint
   rw [hfactor, LinearMap.normDet_comp, hi, one_mul,
     LinearMap.normDet_adjoint_of_finrank_eq R hdim]
 
+private theorem normDet_withLp_prodMap
+    {U U' V V' : Type*}
+    [NormedAddCommGroup U] [InnerProductSpace ℝ U] [FiniteDimensional ℝ U]
+    [NormedAddCommGroup U'] [InnerProductSpace ℝ U'] [FiniteDimensional ℝ U']
+    [NormedAddCommGroup V] [InnerProductSpace ℝ V] [FiniteDimensional ℝ V]
+    [NormedAddCommGroup V'] [InnerProductSpace ℝ V'] [FiniteDimensional ℝ V']
+    (A : U →ₗ[ℝ] U') (B : V →ₗ[ℝ] V')
+    (hU : Module.finrank ℝ U = Module.finrank ℝ U')
+    (hV : Module.finrank ℝ V = Module.finrank ℝ V') :
+    ((A.prodMap B).withLpMap 2).normDet = A.normDet * B.normDet := by
+  let bU := stdOrthonormalBasis ℝ U
+  let bU' := (stdOrthonormalBasis ℝ U').reindex (Fin.castOrderIso hU.symm).toEquiv
+  let bV := stdOrthonormalBasis ℝ V
+  let bV' := (stdOrthonormalBasis ℝ V').reindex (Fin.castOrderIso hV.symm).toEquiv
+  rw [LinearMap.normDet_eq_norm_det_toMatrix ((A.prodMap B).withLpMap 2)
+    (bU.prod bV) (bU'.prod bV')]
+  rw [LinearMap.normDet_eq_norm_det_toMatrix A bU bU',
+    LinearMap.normDet_eq_norm_det_toMatrix B bV bV']
+  simp only [← norm_mul]
+  congr 1
+  have hmatrix :
+      LinearMap.toMatrix (bU.prod bV).toBasis (bU'.prod bV').toBasis
+          ((A.prodMap B).withLpMap 2) =
+        LinearMap.toMatrix (bU.toBasis.prod bV.toBasis)
+          (bU'.toBasis.prod bV'.toBasis) (A.prodMap B) := by
+    ext i j
+    rcases i with i | i <;> rcases j with j | j <;>
+      simp [LinearMap.toMatrix_apply', OrthonormalBasis.prod, Module.Basis.prod_repr_inl,
+        Module.Basis.prod_repr_inr]
+  rw [hmatrix]
+  have hblocks :
+      LinearMap.toMatrix (bU.toBasis.prod bV.toBasis)
+          (bU'.toBasis.prod bV'.toBasis) (A.prodMap B) =
+        Matrix.fromBlocks (LinearMap.toMatrix bU.toBasis bU'.toBasis A) 0 0
+          (LinearMap.toMatrix bV.toBasis bV'.toBasis B) := by
+    ext i j
+    rcases i with i | i <;> rcases j with j | j <;>
+      simp [LinearMap.toMatrix_apply']
+  rw [hblocks, Matrix.det_fromBlocks_zero₂₁]
+
+def linearCoareaCoordinates (L : E →ₗ[ℝ] F) :
+    E →ₗ[ℝ] WithLp 2 (F × LinearMap.ker L) :=
+  (WithLp.linearEquiv 2 ℝ (F × LinearMap.ker L)).symm.toLinearMap ∘ₗ
+    L.prod (LinearMap.ker L).orthogonalProjectionOnto.toLinearMap
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+    [MeasurableSpace F] [BorelSpace F] in
+@[simp] theorem linearCoareaCoordinates_apply (L : E →ₗ[ℝ] F) (x : E) :
+    linearCoareaCoordinates L x =
+      WithLp.toLp 2 (L x, (LinearMap.ker L).orthogonalProjectionOnto x) :=
+  rfl
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+theorem linear_coarea_coordinates_normDet
+    (L : E →ₗ[ℝ] F) (hL : Function.Surjective L) :
+    (linearCoareaCoordinates L).normDet = L.adjoint.normDet := by
+  let K : Submodule ℝ E := LinearMap.ker L
+  let R : Kᗮ →ₗ[ℝ] F := L.domRestrict Kᗮ
+  let D : E →ₗ[ℝ] WithLp 2 (K × Kᗮ) := K.orthogonalDecomposition.toLinearMap
+  let S : WithLp 2 (K × Kᗮ) →ₗ[ℝ] WithLp 2 (Kᗮ × K) :=
+    (LinearIsometryEquiv.withLpProdComm 2 ℝ K Kᗮ).toLinearMap
+  let P : WithLp 2 (Kᗮ × K) →ₗ[ℝ] WithLp 2 (F × K) :=
+    ((R.prodMap (LinearMap.id (R := ℝ) (M := K))).withLpMap 2)
+  have hfactor : linearCoareaCoordinates L = (P ∘ₗ S) ∘ₗ D := by
+    ext x
+    dsimp [linearCoareaCoordinates, P, S, D, R, K]
+    rw [Submodule.orthogonalDecomposition_apply]
+    change WithLp.toLp 2 (L x, L.ker.orthogonalProjectionOnto x) =
+      WithLp.toLp 2
+        (L ((L.kerᗮ.orthogonalProjectionOnto x : L.kerᗮ) : E),
+          L.ker.orthogonalProjectionOnto x)
+    apply congrArg (WithLp.toLp 2)
+    apply Prod.ext
+    · rw [Submodule.orthogonalProjectionOnto_orthogonal]
+      change L x = L (x - L.ker.starProjection x)
+      rw [L.map_sub, LinearMap.mem_ker.mp (Submodule.starProjection_apply_mem L.ker x),
+        sub_zero]
+    · rfl
+  have hdimD : Module.finrank ℝ E = Module.finrank ℝ (WithLp 2 (K × Kᗮ)) :=
+    K.orthogonalDecomposition.toLinearEquiv.finrank_eq
+  have hdimS : Module.finrank ℝ (WithLp 2 (K × Kᗮ)) =
+      Module.finrank ℝ (WithLp 2 (Kᗮ × K)) :=
+    (LinearIsometryEquiv.withLpProdComm 2 ℝ K Kᗮ).toLinearEquiv.finrank_eq
+  have hR : Function.Bijective R := orthogonal_restrict_bijective L hL
+  have hdimR : Module.finrank ℝ Kᗮ = Module.finrank ℝ F :=
+    (LinearEquiv.ofBijective R hR).finrank_eq
+  rw [hfactor, LinearMap.normDet_comp_of_finrank_eq D (P ∘ₗ S) hdimD,
+    LinearMap.normDet_comp_of_finrank_eq S P hdimS]
+  rw [show D.normDet = 1 from K.orthogonalDecomposition.toLinearIsometry.normDet_eq_one,
+    show S.normDet = 1 from
+      (LinearIsometryEquiv.withLpProdComm 2 ℝ K Kᗮ).toLinearIsometry.normDet_eq_one,
+    mul_one, mul_one]
+  rw [show P.normDet = R.normDet by
+    simpa [P] using
+      normDet_withLp_prodMap R (LinearMap.id (R := ℝ) (M := K)) hdimR rfl]
+  exact linear_coarea_factor_eq_normDet_adjoint L hL
+
 private lemma affine_subspace_to_orthogonal
     {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
     [NormedAddCommGroup V] [Module ℝ V]
@@ -226,8 +324,7 @@ private lemma map_affine_orthogonal_restrict
 private lemma orthogonal_fiber_kernel
     {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
     [FiniteDimensional ℝ U] [NormedAddCommGroup V] [InnerProductSpace ℝ V]
-    [FiniteDimensional ℝ V] [MeasurableSpace U] [BorelSpace U]
-    (L : U →ₗ[ℝ] V) :
+    [MeasurableSpace U] [BorelSpace U] (L : U →ₗ[ℝ] V) :
     let K : Submodule ℝ U := LinearMap.ker L
     let A : AffineSubspace ℝ U := AffineSubspace.mk' (0 : U) Kᗮ
     ∃ κ : A → Measure U, Measurable κ ∧
