@@ -8,7 +8,8 @@ noncomputable section
 
 open Set
 open MeasureTheory
-open scoped ENNReal MeasureTheory Function NNReal
+open Filter
+open scoped ENNReal MeasureTheory Function NNReal Topology
 
 namespace Area
 
@@ -88,6 +89,79 @@ theorem multiplicity_eq_one_of_injOn {E F : Type*} {f : E → F} {s : Set E} (hf
       subst hz
       exact ⟨hxs, rfl⟩
   rw [multiplicity, hset, encard_eq_one.mpr ⟨x, rfl⟩, ENat.toENNReal_one]
+
+theorem mul_le_euclideanHausdorffMeasure_image_of_lt_normDet
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+    (A : E →L[ℝ] F) {c : ℝ≥0}
+    (hc : (c : ℝ≥0∞) < ENNReal.ofReal A.toLinearMap.normDet) :
+    ∀ᶠ δ in 𝓝[>] (0 : ℝ≥0),
+      ∀ (s : Set E) (f : E → F),
+        ApproximatesLinearOn f A s δ →
+          (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s ≤
+            μHE[Module.finrank ℝ E] (f '' s) := by
+  have hAnormDet : A.toLinearMap.normDet ≠ 0 := by
+    intro hA
+    simp [hA] at hc
+  have hAker : A.ker = ⊥ :=
+    LinearMap.normDet_ne_zero_tfae A.toLinearMap |>.out 0 1 |>.mp hAnormDet
+  have hAinj : Function.Injective A := LinearMap.ker_eq_bot.mp hAker
+  let V : Submodule ℝ F := LinearMap.range A.toLinearMap
+  let P : F →L[ℝ] V := V.orthogonalProjectionOnto
+  have hdim : Module.finrank ℝ E = Module.finrank ℝ V := by
+    simpa [V] using (LinearMap.finrank_range_of_inj hAinj).symm
+  let e : V ≃ₗᵢ[ℝ] E :=
+    (stdOrthonormalBasis ℝ V).equiv (stdOrthonormalBasis ℝ E) (finCongr hdim.symm)
+  let AR : E →L[ℝ] V := A.rangeRestrict
+  let B : E →L[ℝ] E := e.toContinuousLinearMap.comp AR
+  have hBnormDet : B.toLinearMap.normDet = A.toLinearMap.normDet := by
+    change (e.toLinearIsometry.toLinearMap ∘ₗ AR.toLinearMap).normDet = _
+    rw [LinearMap.normDet_comp_of_finrank_eq _ _ hdim]
+    simp [AR, e.toLinearIsometry.normDet_eq_one]
+  have hBdet : |B.det| = A.toLinearMap.normDet := by
+    rw [← LinearMap.normDet_eq_abs_det, hBnormDet]
+  have hcB : (c : ℝ≥0∞) < ENNReal.ofReal |B.det| := by
+    simpa [hBdet] using hc
+  have H := MeasureTheory.mul_le_addHaar_image_of_lt_det
+    (volume : Measure E) B hcB
+  filter_upwards [H] with δ hδ
+  intro s f hf
+  let g : E → E := fun x => e (P (f x))
+  have hPA : P.comp A = AR := by
+    ext x
+    exact V.starProjection_eq_self_iff.mpr ⟨x, rfl⟩
+  have hg : ApproximatesLinearOn g B s δ := by
+    intro x hx y hy
+    calc
+      ‖g x - g y - B (x - y)‖ =
+          ‖P (f x - f y - A (x - y))‖ := by
+            rw [← e.norm_map]
+            simp only [map_sub, g, B, ContinuousLinearMap.comp_apply]
+            rw [← hPA]
+            rfl
+      _ ≤ ‖f x - f y - A (x - y)‖ :=
+        V.norm_orthogonalProjectionOnto_apply_le _
+      _ ≤ δ * ‖x - y‖ := hf x hx y hy
+  have hsame : (c : ℝ≥0∞) * μHE[Module.finrank ℝ E] s ≤
+      μHE[Module.finrank ℝ E] (g '' s) := by
+    rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    exact hδ s g hg
+  have himage : g '' s = e '' (P '' (f '' s)) := by
+    simp only [g, image_image]
+  have hiso : μHE[Module.finrank ℝ E] (g '' s) =
+      μHE[Module.finrank ℝ E] (P '' (f '' s)) := by
+    rw [himage]
+    exact e.isometry.euclideanHausdorffMeasure_image _
+  have hproj : μHE[Module.finrank ℝ E] (P '' (f '' s)) ≤
+      μHE[Module.finrank ℝ E] (f '' s) := by
+    rw [Measure.euclideanHausdorffMeasure_def, Measure.smul_apply,
+      Measure.euclideanHausdorffMeasure_def, Measure.smul_apply]
+    gcongr
+    simpa [P] using hausdorffMeasure_orthogonalProjectionOnto_le V
+      (Module.finrank ℝ E) (f '' s)
+      (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity)
+  exact hsame.trans (hiso.le.trans hproj)
 
 variable {E : Type*}
   [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]

@@ -26,6 +26,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Coarea Jacobian measurability | Chapter 2, Section 6, formulas 6.3 and 6.6, pp. 66-67 | `Area.measurable_coareaJacobian` in `GMT/Area/Jacobian.lean` | measurable integrand interface obtained from measurable `fderiv`, continuous adjoint, and norm-determinant continuity | implemented |
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
+| Lower local area comparison | Chapter 2, Section 3, proof of formula 3.2, pp. 53-54 | `Area.mul_le_euclideanHausdorffMeasure_image_of_lt_normDet` in `GMT/Area/Formula.lean` | reusable rectangular comparison for maps approximated by an injective linear map; lower half of the higher-codimension area formula | implemented; module builds silently, declaration linters pass, axiom closure `[propext, Classical.choice, Quot.sound]` |
 | Injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula` in `GMT/Area/Formula.lean` | square-dimensional differentiable interface | implemented with equal domain/codomain |
 | Lipschitz injective weighted area formula | Chapter 2, Section 3, formula 3.5, p. 54 | `Area.injective_area_formula_weighted_lipschitz` in `GMT/Area/Formula.lean` | square-dimensional source-weighted fiber-sum identity for globally Lipschitz injective maps, with Rademacher null-set transfer | implemented |
 | Lipschitz injective area formula, unweighted | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula_lipschitz` in `GMT/Area/Formula.lean` | unweighted square-dimensional globally Lipschitz injective corollary | implemented |
@@ -274,6 +275,14 @@ Area.linear_area_formula_eq_volume {E F} [NormedAddCommGroup E] [InnerProductSpa
   [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
   (L : E →ₗ[ℝ] F) (s : Set E) :
   μHE[finrank ℝ E] (L '' s) = ENNReal.ofReal L.normDet * volume s
+Area.mul_le_euclideanHausdorffMeasure_image_of_lt_normDet {E F}
+  [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [InnerProductSpace ℝ F] [MeasurableSpace E]
+  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] (A : E →L[ℝ] F) {c : NNReal}
+  (hc : ↑c < ENNReal.ofReal A.toLinearMap.normDet) :
+  ∀ᶠ δ : NNReal in 𝓝[>] 0, ∀ (s : Set E) (f : E → F),
+    ApproximatesLinearOn f A s δ →
+      ↑c * μHE[finrank ℝ E] s ≤ μHE[finrank ℝ E] (f '' s)
 Area.injective_area_formula {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
   {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (hs : MeasurableSet s)
