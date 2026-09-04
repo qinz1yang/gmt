@@ -20,6 +20,215 @@ theorem Measure.euclideanHausdorffMeasure_apply_eq_smul
         μH[d] s := by
   rw [Measure.euclideanHausdorffMeasure_def, Measure.smul_apply, ENNReal.smul_def, smul_eq_mul]
 
+private def openHausdorffContent
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (r : ℝ≥0∞) (a : Set X) : ℝ≥0∞ :=
+  ⨅ (t : ℕ → Set X) (_ : ∀ n, IsOpen (t n)) (_ : ∀ n, Metric.ediam (t n) ≤ r)
+      (_ : a ⊆ ⋃ n, t n),
+    ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d
+
+private def hausdorffContent
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (r : ℝ≥0∞) (a : Set X) : ℝ≥0∞ :=
+  ⨅ (t : ℕ → Set X) (_ : a ⊆ ⋃ n, t n) (_ : ∀ n, Metric.ediam (t n) ≤ r),
+    ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d
+
+private theorem isOpen_fiber_subset
+    {X Y : Type*} [TopologicalSpace X] [TopologicalSpace Y] [T2Space Y]
+    {f : X → Y} {s u : Set X} (hs : IsCompact s) (hf : ContinuousOn f s)
+    (hu : IsOpen u) : IsOpen {y | s ∩ f ⁻¹' {y} ⊆ u} := by
+  have hc : IsClosed (f '' (s \ u)) :=
+    ((hs.diff hu).image_of_continuousOn (hf.mono sdiff_subset)).isClosed
+  rw [show {y | s ∩ f ⁻¹' {y} ⊆ u} = (f '' (s \ u))ᶜ by
+    ext y
+    constructor
+    · intro h hy
+      obtain ⟨x, ⟨hxs, hxu⟩, hxy⟩ := hy
+      exact hxu (h ⟨hxs, by simp [hxy]⟩)
+    · intro h x hx
+      by_contra hxu
+      exact h ⟨x, ⟨hx.1, hxu⟩, by simpa using hx.2⟩]
+  exact hc.isOpen_compl
+
+private theorem upperSemicontinuous_iInf_cover
+    {X Y : Type*} [PseudoMetricSpace X] [TopologicalSpace Y] [T2Space Y]
+    {f : X → Y} {s : Set X} (hs : IsCompact s) (hf : ContinuousOn f s)
+    (d : ℝ) (r : ℝ≥0∞) :
+    UpperSemicontinuous (fun y => openHausdorffContent d r (s ∩ f ⁻¹' {y})) := by
+  apply upperSemicontinuous_iInf
+  intro t
+  apply upperSemicontinuous_iInf
+  intro htopen
+  apply upperSemicontinuous_iInf
+  intro htdiam
+  rw [upperSemicontinuous_iff_isOpen_preimage]
+  intro c
+  let cost : ℝ≥0∞ := ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d
+  by_cases hcost : cost < c
+  · convert isOpen_fiber_subset hs hf (isOpen_iUnion htopen) using 1
+    ext y
+    change (⨅ (_ : s ∩ f ⁻¹' {y} ⊆ ⋃ n, t n), cost) < c ↔
+      s ∩ f ⁻¹' {y} ⊆ ⋃ n, t n
+    constructor
+    · intro h
+      by_contra hy
+      simp [hy] at h
+    · intro hy
+      exact (iInf_le_of_le hy le_rfl).trans_lt hcost
+  · have heq : (fun y => ⨅ (_ : s ∩ f ⁻¹' {y} ⊆ ⋃ n, t n), cost) ⁻¹' Iio c = ∅ := by
+      ext y
+      by_cases hy : s ∩ f ⁻¹' {y} ⊆ ⋃ n, t n
+      · simp [hy, hcost]
+      · simp [hy]
+    exact heq ▸ isOpen_empty
+
+private theorem measurable_openHausdorffContent_fiber
+    {X Y : Type*} [PseudoMetricSpace X] [TopologicalSpace Y] [MeasurableSpace Y]
+    [BorelSpace Y] [T2Space Y] {f : X → Y} {s : Set X} (hs : IsCompact s)
+    (hf : ContinuousOn f s) (d : ℝ) (r : ℝ≥0∞) :
+    Measurable (fun y => openHausdorffContent d r (s ∩ f ⁻¹' {y})) :=
+  (upperSemicontinuous_iInf_cover hs hf d r).measurable
+
+private theorem exists_thickening_radius
+    {d : ℝ} (hd : 0 < d) {a : ℝ≥0∞} {r r' : ℝ≥0} (ha : a ≤ r)
+    (hrr' : r < r') {η : ℝ≥0∞} (hη : η ≠ 0) :
+    ∃ ε : ℝ≥0, 0 < ε ∧ a + 2 * ε ≤ r' ∧ (a + 2 * ε) ^ d ≤ a ^ d + η := by
+  let ε : ℕ → ℝ≥0 := fun j => (j + 1 : ℝ≥0)⁻¹
+  have hε : Tendsto (fun j => (ε j : ℝ≥0∞)) atTop (𝓝 0) := by
+    have hfun : (fun j => (ε j : ℝ≥0∞)) =
+        (fun n : ℕ => (n : ℝ≥0∞)⁻¹) ∘ fun j => j + 1 := by
+      funext j
+      simp [ε, Function.comp_apply]
+    rw [hfun]
+    exact ENNReal.tendsto_inv_nat_nhds_zero.comp (tendsto_add_atTop_nat 1)
+  have hadd : Tendsto (fun j => a + 2 * (ε j : ℝ≥0∞)) atTop (𝓝 a) := by
+    simpa using (ENNReal.Tendsto.const_mul hε
+      (Or.inr ENNReal.ofNat_ne_top)).const_add a
+  have ha_top : a ≠ ∞ := ne_top_of_le_ne_top ENNReal.coe_ne_top ha
+  have hpow_top : a ^ d ≠ ∞ :=
+    (ENNReal.rpow_lt_top_of_nonneg hd.le ha_top).ne
+  have hevent_r : ∀ᶠ j in atTop, a + 2 * (ε j : ℝ≥0∞) < r' :=
+    hadd.eventually (Iio_mem_nhds (ha.trans_lt (ENNReal.coe_lt_coe.2 hrr')))
+  have hevent_pow : ∀ᶠ j in atTop,
+      (a + 2 * (ε j : ℝ≥0∞)) ^ d < a ^ d + η :=
+    (ENNReal.continuous_rpow_const.tendsto a).comp hadd |>.eventually
+      (Iio_mem_nhds (ENNReal.lt_add_right hpow_top hη))
+  obtain ⟨j, hjr, hjpow⟩ := (hevent_r.and hevent_pow).exists
+  refine ⟨ε j, ?_, hjr.le, hjpow.le⟩
+  simp [ε]
+
+private theorem hausdorffContent_le_openHausdorffContent
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (r : ℝ≥0∞) (a : Set X) :
+    hausdorffContent d r a ≤ openHausdorffContent d r a := by
+  unfold openHausdorffContent hausdorffContent
+  refine le_iInf fun t => le_iInf fun htopen => le_iInf fun htdiam => le_iInf fun htcover => ?_
+  exact iInf_le_of_le t (iInf_le_of_le htcover (iInf_le_of_le htdiam le_rfl))
+
+private theorem openHausdorffContent_le_hausdorffContent
+    {X : Type*} [PseudoMetricSpace X] {d : ℝ} (hd : 0 < d) {r r' : ℝ≥0}
+    (hrr' : r < r') (a : Set X) :
+    openHausdorffContent d r' a ≤ hausdorffContent d r a := by
+  unfold hausdorffContent
+  refine le_iInf fun t => le_iInf fun htcover => le_iInf fun htdiam => ?_
+  let cost : ℝ≥0∞ := ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d
+  apply ENNReal.le_of_forall_pos_le_add
+  intro ε hε _
+  obtain ⟨η, hηpos, hηsum⟩ :=
+    ENNReal.exists_pos_sum_of_countable (ENNReal.coe_pos.2 hε).ne' ℕ
+  have hradius : ∀ n, ∃ δ : ℝ≥0, 0 < δ ∧
+      Metric.ediam (t n) + 2 * δ ≤ r' ∧
+        (Metric.ediam (t n) + 2 * δ) ^ d ≤ Metric.ediam (t n) ^ d + η n := by
+    intro n
+    exact exists_thickening_radius hd (htdiam n) hrr'
+      (ENNReal.coe_ne_zero.mpr (hηpos n).ne')
+  choose δ hδpos hδdiam hδpow using hradius
+  let u : ℕ → Set X := fun n => Metric.thickening (δ n) (t n)
+  have huopen : ∀ n, IsOpen (u n) := fun n => Metric.isOpen_thickening
+  have hucover : a ⊆ ⋃ n, u n := by
+    intro x hx
+    obtain ⟨n, hxn⟩ := mem_iUnion.mp (htcover hx)
+    exact mem_iUnion.mpr ⟨n, Metric.self_subset_thickening (hδpos n) _ hxn⟩
+  have hudiam : ∀ n, Metric.ediam (u n) ≤ (r' : ℝ≥0∞) := by
+    intro n
+    exact (Metric.ediam_thickening_le (δ n) (s := t n)).trans (hδdiam n)
+  unfold openHausdorffContent
+  refine (iInf₂_le_of_le u huopen
+    (iInf₂_le_of_le hudiam hucover le_rfl)).trans ?_
+  calc
+    (∑' n, ⨆ _ : (u n).Nonempty, Metric.ediam (u n) ^ d) ≤
+        ∑' n, ((⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d) + (η n : ℝ≥0∞)) := by
+      apply ENNReal.tsum_le_tsum
+      intro n
+      by_cases hn : (t n).Nonempty
+      · have hun : (u n).Nonempty :=
+          hn.mono (Metric.self_subset_thickening (hδpos n) (t n))
+        simp only [iSup_pos hn, iSup_pos hun]
+        exact (ENNReal.rpow_le_rpow
+          (Metric.ediam_thickening_le (δ n) (s := t n)) hd.le).trans (hδpow n)
+      · have htn : t n = ∅ := not_nonempty_iff_eq_empty.mp hn
+        simp [u, htn]
+    _ = cost + ∑' n, (η n : ℝ≥0∞) := by
+      rw [ENNReal.tsum_add]
+    _ ≤ cost + ε := add_le_add le_rfl hηsum.le
+
+private def hausdorffScale (n : ℕ) : ℝ≥0 := (n + 1 : ℝ≥0)⁻¹
+
+private theorem tendsto_hausdorffScale :
+    Tendsto (fun n => (hausdorffScale n : ℝ≥0∞)) atTop (𝓝 0) := by
+  have hfun : (fun n => (hausdorffScale n : ℝ≥0∞)) =
+      (fun n : ℕ => (n : ℝ≥0∞)⁻¹) ∘ fun n => n + 1 := by
+    funext n
+    simp [hausdorffScale, Function.comp_apply]
+  rw [hfun]
+  exact ENNReal.tendsto_inv_nat_nhds_zero.comp (tendsto_add_atTop_nat 1)
+
+private theorem antitone_hausdorffContent
+    {X : Type*} [PseudoMetricSpace X] (d : ℝ) (a : Set X) :
+    Antitone (fun r => hausdorffContent d r a) := by
+  intro r r' hrr'
+  unfold hausdorffContent
+  refine le_iInf fun t => le_iInf fun htcover => le_iInf fun htdiam => ?_
+  exact iInf₂_le_of_le t htcover (iInf_le_of_le (fun n => (htdiam n).trans hrr') le_rfl)
+
+private theorem hausdorffMeasure_eq_iSup_hausdorffContent
+    {X : Type*} [MetricSpace X] [MeasurableSpace X] [BorelSpace X]
+    (d : ℝ) (a : Set X) :
+    μH[d] a = ⨆ n, hausdorffContent d (hausdorffScale n) a := by
+  rw [Measure.hausdorffMeasure_apply]
+  change (⨆ (r : ℝ≥0∞) (_ : 0 < r), hausdorffContent d r a) =
+    ⨆ n, hausdorffContent d (hausdorffScale n) a
+  apply le_antisymm
+  · refine iSup_le fun r => iSup_le fun hr => ?_
+    obtain ⟨n, hn⟩ := (tendsto_hausdorffScale.eventually (Iio_mem_nhds hr)).exists
+    exact (antitone_hausdorffContent d a hn.le).trans (le_iSup (fun n =>
+      hausdorffContent d (hausdorffScale n) a) n)
+  · refine iSup_le fun n => ?_
+    exact le_iSup₂_of_le (hausdorffScale n) (by simp [hausdorffScale]) le_rfl
+
+private theorem hausdorffMeasure_eq_iSup_openHausdorffContent
+    {X : Type*} [MetricSpace X] [MeasurableSpace X] [BorelSpace X]
+    {d : ℝ} (hd : 0 < d) (a : Set X) :
+    μH[d] a = ⨆ n, openHausdorffContent d (hausdorffScale n) a := by
+  rw [hausdorffMeasure_eq_iSup_hausdorffContent]
+  apply le_antisymm
+  · refine iSup_le fun n => ?_
+    exact (hausdorffContent_le_openHausdorffContent d _ a).trans
+      (le_iSup (fun j => openHausdorffContent d (hausdorffScale j) a) n)
+  · refine iSup_le fun n => ?_
+    have hscale : hausdorffScale (n + 1) < hausdorffScale n := by
+      apply NNReal.inv_lt_inv
+      · positivity
+      · simp
+    exact (openHausdorffContent_le_hausdorffContent hd hscale a).trans
+      (le_iSup (fun j => hausdorffContent d (hausdorffScale j) a) (n + 1))
+
+theorem ContinuousOn.measurable_hausdorffMeasure_fiber
+    {X Y : Type*} [MetricSpace X] [MeasurableSpace X] [BorelSpace X]
+    [TopologicalSpace Y] [MeasurableSpace Y] [BorelSpace Y] [T2Space Y]
+    {f : X → Y} {s : Set X} (hf : ContinuousOn f s) (hs : IsCompact s)
+    {d : ℝ} (hd : 0 < d) :
+    Measurable (fun y => μH[d] (s ∩ f ⁻¹' {y})) := by
+  simp_rw [hausdorffMeasure_eq_iSup_openHausdorffContent hd]
+  exact Measurable.iSup fun n => measurable_openHausdorffContent_fiber hs hf d _
+
 private theorem nullMeasurableSet_image_hausdorffMeasure_of_measurableSet
     {X Y : Type*} [MetricSpace X] [SigmaCompactSpace X]
     [MetricSpace Y] [MeasurableSpace X] [BorelSpace X]
