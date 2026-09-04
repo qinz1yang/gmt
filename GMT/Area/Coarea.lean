@@ -932,6 +932,235 @@ private theorem ApproximatesLinearOn.exists_measurable_hausdorffMeasure_fiber_ma
                 μH[k + Module.finrank ℝ F] s) := by
         gcongr
 
+private theorem hausdorffMeasure_finrank_ne_top_of_isCompact
+    {X : Type*} [NormedAddCommGroup X] [InnerProductSpace ℝ X]
+    [FiniteDimensional ℝ X] [MeasurableSpace X] [BorelSpace X]
+    {s : Set X} (hs : IsCompact s) :
+    μH[(Module.finrank ℝ X : ℝ)] s ≠ ∞ := by
+  have hμ : μHE[Module.finrank ℝ X] s ≠ ∞ := by
+    rw [InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    exact hs.measure_lt_top.ne
+  intro htop
+  apply hμ
+  rw [Measure.euclideanHausdorffMeasure_apply_eq_smul, htop]
+  simp [MeasureTheory.Measure.addHaarScalarFactor_volume_hausdorffMeasure_ne_zero]
+
+private theorem critical_lintegral_hausdorffMeasure_fiber_eq_zero_compact
+    {f : E → F} (hf : ContDiff ℝ 1 f) {s : Set E} (hs : IsCompact s)
+    (hcrit : ∀ x ∈ s, ¬ Function.Surjective (fderiv ℝ f x))
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E) :
+    Measurable (fun y : F =>
+      μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)] (s ∩ f ⁻¹' {y})) ∧
+      ∫⁻ y : F, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] = 0 := by
+  classical
+  let k : ℕ := Module.finrank ℝ E - Module.finrank ℝ F
+  have hk : 0 < k := Nat.sub_pos_of_lt hEF
+  have hmeas : Measurable (fun y : F => μH[(k : ℝ)] (s ∩ f ⁻¹' {y})) :=
+    hf.continuous.continuousOn.measurable_hausdorffMeasure_fiber hs (by exact_mod_cast hk)
+  have hdim : (k : ℝ) + Module.finrank ℝ F = Module.finrank ℝ E := by
+    exact_mod_cast Nat.sub_add_cancel hEF.le
+  have hfin : μH[(k : ℝ) + Module.finrank ℝ F] s ≠ ∞ := by
+    rw [hdim]
+    exact hausdorffMeasure_finrank_ne_top_of_isCompact hs
+  have hbdd : BddAbove ((fun x : E => ‖fderiv ℝ f x‖₊) '' s) :=
+    IsCompact.bddAbove_image hs
+      ((hf.continuous_fderiv one_ne_zero).nnnorm.continuousOn)
+  obtain ⟨M, hM⟩ := bddAbove_def.mp hbdd
+  have hMbound : ∀ x ∈ s, ‖fderiv ℝ f x‖₊ ≤ M := by
+    intro x hx
+    exact hM _ ⟨x, hx, rfl⟩
+  have hf' : ∀ x ∈ s,
+      HasFDerivWithinAt f (fderiv ℝ f x) s x := by
+    intro x _
+    exact (hf.differentiable one_ne_zero x).hasFDerivAt.hasFDerivWithinAt
+  let C : ℝ≥0∞ := (M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+    volume (Metric.closedBall (0 : F) 1) * μH[(k : ℝ) + Module.finrank ℝ F] s
+  have hbound : ∀ p : ℕ,
+      ∫⁻ y : F, μH[(k : ℝ)] (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] ≤
+        ((p + 1 : ℝ≥0) : ℝ≥0∞)⁻¹ * C := by
+    intro p
+    rcases eq_empty_or_nonempty s with rfl | hsne
+    · simp
+    let c : ℝ≥0 := p + 1
+    have hc : 1 ≤ c := by simp [c]
+    have hc0 : c ≠ 0 := by positivity
+    obtain ⟨t, A, htdisj, htmeas, htcover, htapprox, htrep⟩ :=
+      exists_partition_approximatesLinearOn_of_hasFDerivWithinAt
+        f s (fderiv ℝ f) hf'
+          (fun _ => c⁻¹) (fun _ => inv_ne_zero hc0)
+    have hs_union : s = ⋃ n, s ∩ t n := by
+      rw [← inter_iUnion]
+      exact Subset.antisymm (subset_inter Subset.rfl htcover) inter_subset_left
+    have htmeas' : ∀ n, MeasurableSet (s ∩ t n) :=
+      fun n => hs.measurableSet.inter (htmeas n)
+    have htdisj' : Pairwise fun i j => Disjoint (s ∩ t i) (s ∩ t j) :=
+      pairwise_disjoint_mono htdisj fun n => inter_subset_right
+    have hmeasure : ∑' n, μH[(k : ℝ) + Module.finrank ℝ F] (s ∩ t n) =
+        μH[(k : ℝ) + Module.finrank ℝ F] s := by
+      rw [← measure_iUnion htdisj' htmeas', ← hs_union]
+    have hpiece : ∀ n, ∃ q : F → ℝ≥0∞, Measurable q ∧
+        (∀ y, μH[(k : ℝ)] ((s ∩ t n) ∩ f ⁻¹' {y}) ≤ q y) ∧
+          ∫⁻ y : F, q y ∂μHE[Module.finrank ℝ F] ≤
+            (c : ℝ≥0∞)⁻¹ *
+              ((M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+                volume (Metric.closedBall (0 : F) 1) *
+                  μH[(k : ℝ) + Module.finrank ℝ F] (s ∩ t n)) := by
+      intro n
+      obtain ⟨x, hxs, hAx⟩ := htrep hsne n
+      apply ApproximatesLinearOn.exists_measurable_hausdorffMeasure_fiber_majorant_of_not_surjective
+        (htapprox n) hc
+      · simp [c, hc0]
+      · rw [hAx]
+        exact hMbound x hxs
+      · rw [hAx]
+        exact hcrit x hxs
+      · exact_mod_cast hk
+      · exact ne_top_of_le_ne_top hfin (measure_mono inter_subset_left)
+    choose q hqmeas hqmajor hqintegral using hpiece
+    let Q : F → ℝ≥0∞ := fun y => ∑' n, q n y
+    have hQmeas : Measurable Q := Measurable.tsum hqmeas
+    have hfiber_union : ∀ y : F,
+        s ∩ f ⁻¹' {y} = ⋃ n, (s ∩ t n) ∩ f ⁻¹' {y} := by
+      intro y
+      calc
+        s ∩ f ⁻¹' {y} = (⋃ n, s ∩ t n) ∩ f ⁻¹' {y} :=
+          congrArg (fun u => u ∩ f ⁻¹' {y}) hs_union
+        _ = ⋃ n, (s ∩ t n) ∩ f ⁻¹' {y} :=
+          iUnion_inter (f ⁻¹' {y}) (fun n => s ∩ t n)
+    have hpoint : ∀ y : F, μH[(k : ℝ)] (s ∩ f ⁻¹' {y}) ≤ Q y := by
+      intro y
+      rw [hfiber_union y]
+      exact (measure_iUnion_le _).trans (ENNReal.tsum_le_tsum fun n => hqmajor n y)
+    calc
+      (∫⁻ y : F, μH[(k : ℝ)] (s ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F]) ≤
+          ∫⁻ y : F, Q y ∂μHE[Module.finrank ℝ F] := lintegral_mono hpoint
+      _ = ∑' n, ∫⁻ y : F, q n y ∂μHE[Module.finrank ℝ F] :=
+        MeasureTheory.lintegral_tsum fun n => (hqmeas n).aemeasurable
+      _ ≤ ∑' n, (c : ℝ≥0∞)⁻¹ *
+            ((M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+              volume (Metric.closedBall (0 : F) 1) *
+                μH[(k : ℝ) + Module.finrank ℝ F] (s ∩ t n)) :=
+        ENNReal.tsum_le_tsum hqintegral
+      _ = (c : ℝ≥0∞)⁻¹ * C := by
+        rw [show C = (M + 1 : ℝ≥0∞) ^ Module.finrank ℝ F *
+          volume (Metric.closedBall (0 : F) 1) *
+            μH[(k : ℝ) + Module.finrank ℝ F] s from rfl, ← hmeasure]
+        simp_rw [← mul_assoc]
+        rw [ENNReal.tsum_mul_left]
+      _ = ((p + 1 : ℝ≥0) : ℝ≥0∞)⁻¹ * C := by rfl
+  have hCtop : C ≠ ∞ := by
+    apply ENNReal.mul_ne_top
+    · apply ENNReal.mul_ne_top
+      · simp
+      · exact measure_closedBall_lt_top.ne
+    · exact hfin
+  have hinv : Filter.Tendsto (fun p : ℕ => ((p + 1 : ℝ≥0) : ℝ≥0∞)⁻¹)
+      Filter.atTop (nhds 0) := by
+    have hfun : (fun p : ℕ => ((p + 1 : ℝ≥0) : ℝ≥0∞)⁻¹) =
+        (fun n : ℕ => (n : ℝ≥0∞)⁻¹) ∘ fun p => p + 1 := by
+      funext p
+      simp [Function.comp_apply]
+    rw [hfun]
+    exact ENNReal.tendsto_inv_nat_nhds_zero.comp (Filter.tendsto_add_atTop_nat 1)
+  have htend : Filter.Tendsto (fun p : ℕ => ((p + 1 : ℝ≥0) : ℝ≥0∞)⁻¹ * C)
+      Filter.atTop (nhds 0) := by
+    simpa using ENNReal.Tendsto.mul_const hinv (Or.inr hCtop)
+  refine ⟨by simpa only [k] using hmeas, ?_⟩
+  exact bot_unique (ge_of_tendsto' htend hbound)
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem normDet_adjoint_eq_zero_iff_not_surjective (L : E →ₗ[ℝ] F) :
+    L.adjoint.normDet = 0 ↔ ¬ Function.Surjective L := by
+  rw [LinearMap.normDet_eq_zero_iff_ker_ne_bot, ← LinearMap.orthogonal_range]
+  constructor
+  · intro h hsurj
+    apply h
+    rw [LinearMap.range_eq_top.mpr hsurj]
+    simp
+  · intro h hbot
+    apply h
+    exact LinearMap.range_eq_top.mp (Submodule.orthogonal_eq_bot_iff.mp hbot)
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem isClosed_not_surjective_fderiv
+    {f : E → F} (hf : ContDiff ℝ 1 f) :
+    IsClosed {x | ¬ Function.Surjective (fderiv ℝ f x)} := by
+  have hcont : Continuous (fun x : E =>
+      (fderiv ℝ f x).toLinearMap.adjoint.normDet) :=
+    ContinuousLinearMap.continuous_normDet.comp
+      (ContinuousLinearMap.adjoint.continuous.comp
+        (hf.continuous_fderiv one_ne_zero))
+  have hc : {x : E | ¬ Function.Surjective (fderiv ℝ f x)} =
+      (fun x : E => (fderiv ℝ f x).toLinearMap.adjoint.normDet) ⁻¹' {0} := by
+    ext x
+    exact normDet_adjoint_eq_zero_iff_not_surjective
+      (fderiv ℝ f x).toLinearMap |>.symm
+  rw [hc]
+  exact isClosed_singleton.preimage hcont
+
+private theorem critical_lintegral_hausdorffMeasure_fiber_eq_zero
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E) :
+    Measurable (fun y : F => μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+      ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) ∧
+      ∫⁻ y : F, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})
+            ∂μHE[Module.finrank ℝ F] = 0 := by
+  let c : Set E := {x | ¬ Function.Surjective (fderiv ℝ f x)}
+  let t : ℕ → Set E := fun n => c ∩ Metric.closedBall 0 n
+  have hcclosed : IsClosed c := isClosed_not_surjective_fderiv hf
+  have htcompact : ∀ n, IsCompact (t n) := fun n =>
+    IsCompact.inter_left (isCompact_closedBall (0 : E) n) hcclosed
+  have htmono : Monotone t := by
+    intro n m hnm
+    exact inter_subset_inter_right c (Metric.closedBall_subset_closedBall (by exact_mod_cast hnm))
+  have htunion : ⋃ n, t n = c := by
+    exact Metric.iUnion_inter_closedBall_nat c 0
+  have htcrit : ∀ n x, x ∈ t n →
+      ¬ Function.Surjective (fderiv ℝ f x) := by
+    intro n x hx
+    exact hx.1
+  have hlocal : ∀ n,
+      Measurable (fun y : F =>
+        μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)] (t n ∩ f ⁻¹' {y})) ∧
+        ∫⁻ y : F, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+            (t n ∩ f ⁻¹' {y}) ∂μHE[Module.finrank ℝ F] = 0 := by
+    intro n
+    exact critical_lintegral_hausdorffMeasure_fiber_eq_zero_compact hf
+      (htcompact n) (htcrit n) hEF
+  have hfibermono : Monotone (fun n => fun y : F =>
+      μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)] (t n ∩ f ⁻¹' {y})) := by
+    intro n m hnm y
+    exact measure_mono (inter_subset_inter_left _ (htmono hnm))
+  have hfiber : ∀ y : F,
+      μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)] (c ∩ f ⁻¹' {y}) =
+        ⨆ n, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          (t n ∩ f ⁻¹' {y}) := by
+    intro y
+    rw [← htunion, iUnion_inter]
+    exact (show Monotone (fun n => t n ∩ f ⁻¹' {y}) from fun _ _ hnm =>
+      inter_subset_inter_left _ (htmono hnm)).directed_le.measure_iUnion
+  refine ⟨?_, ?_⟩
+  · rw [show (fun y : F =>
+        μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) =
+      (fun y : F => ⨆ n, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        (t n ∩ f ⁻¹' {y})) by
+          funext y
+          exact hfiber y]
+    exact Measurable.iSup fun n => (hlocal n).1
+  · rw [show (fun y : F =>
+        μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) =
+      (fun y : F => ⨆ n, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        (t n ∩ f ⁻¹' {y})) by
+          funext y
+          exact hfiber y]
+    rw [MeasureTheory.lintegral_iSup (fun n => (hlocal n).1) hfibermono]
+    simp_rw [(hlocal _).2]
+    simp
+
 omit [FiniteDimensional ℝ F] [MeasurableSpace E] in
 theorem dimension_lowering_image_null
     {f : E → F} (hf : ContDiff ℝ 1 f)
@@ -1770,6 +1999,137 @@ private theorem regular_coarea_formula_weighted
       _ = ∫⁻ x in s, g x * ENNReal.ofReal
             ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
               ∂μHE[Module.finrank ℝ E] := by rw [htcover]
+
+private theorem coarea_formula_weighted_aux
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : MeasurableSet s) (g : E → ℝ≥0∞) (hg : Measurable g) :
+    AEMeasurable (fun y : F => ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) volume ∧
+      ∫⁻ y : F, ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+            ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+        ∫⁻ x in s, g x * ENNReal.ofReal (coareaJacobian f x)
+          ∂μHE[Module.finrank ℝ E] := by
+  classical
+  let r : Set E := s ∩ {x | Function.Surjective (fderiv ℝ f x)}
+  let c : Set E := s ∩ {x | ¬ Function.Surjective (fderiv ℝ f x)}
+  have hcritclosed : IsClosed {x : E | ¬ Function.Surjective (fderiv ℝ f x)} :=
+    isClosed_not_surjective_fderiv hf
+  have hregmeas : MeasurableSet {x : E | Function.Surjective (fderiv ℝ f x)} := by
+    rw [show {x : E | Function.Surjective (fderiv ℝ f x)} =
+      {x : E | ¬ Function.Surjective (fderiv ℝ f x)}ᶜ by ext x; simp]
+    exact hcritclosed.measurableSet.compl
+  have hrmeas : MeasurableSet r := hs.inter hregmeas
+  have hcmeas : MeasurableSet c := hs.inter hcritclosed.measurableSet
+  have hsplit : s = r ∪ c := by
+    ext x
+    simp only [r, c, mem_union, mem_inter_iff, mem_ofPred_eq]
+    tauto
+  have hrcdisj : Disjoint r c := by
+    apply Set.disjoint_left.2
+    intro x hxr hxc
+    exact hxc.2 hxr.2
+  have hreg := regular_coarea_formula_weighted hf hrmeas
+    (fun x hx => hx.2) g hg
+  have hcritraw := critical_lintegral_hausdorffMeasure_fiber_eq_zero hf hEF
+  have hcritraw_volume :
+      ∫⁻ y : F, μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+          ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y}) = 0 := by
+    simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using hcritraw.2
+  have hrawzero : (fun y : F =>
+      μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        ({x | ¬ Function.Surjective (fderiv ℝ f x)} ∩ f ⁻¹' {y})) =ᵐ[
+          volume] 0 :=
+    (lintegral_eq_zero_iff hcritraw.1).mp hcritraw_volume
+  have hcritical_weighted : (fun y : F =>
+      ∫⁻ x in c ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) =ᵐ[
+          volume] 0 := by
+    filter_upwards [hrawzero] with y hy
+    have hraw : μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        (c ∩ f ⁻¹' {y}) = 0 := by
+      apply measure_mono_null _ hy
+      intro x hx
+      exact ⟨hx.1.2, hx.2⟩
+    have hnormalized : μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (c ∩ f ⁻¹' {y}) = 0 := by
+      rw [Measure.euclideanHausdorffMeasure_apply_eq_smul, hraw, mul_zero]
+    have hrestrict : (μHE[Module.finrank ℝ E - Module.finrank ℝ F] : Measure E).restrict
+        (c ∩ f ⁻¹' {y}) = 0 := Measure.restrict_eq_zero.mpr hnormalized
+    rw [hrestrict]
+    exact lintegral_zero_measure g
+  have hfibersplit : ∀ y : F,
+      s ∩ f ⁻¹' {y} = (r ∩ f ⁻¹' {y}) ∪ (c ∩ f ⁻¹' {y}) := by
+    intro y
+    exact (congrArg (fun u => u ∩ f ⁻¹' {y}) hsplit).trans
+      (union_inter_distrib_right _ _ _)
+  have htotal_eq : (fun y : F => ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) =ᵐ[
+        volume]
+      (fun y : F => ∫⁻ x in r ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) := by
+    filter_upwards [hcritical_weighted] with y hy
+    have hy' : ∫⁻ x in c ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] = 0 := by
+      simpa only [Pi.zero_apply] using hy
+    rw [hfibersplit y, lintegral_union
+      (hcmeas.inter ((MeasurableSet.singleton y).preimage hf.continuous.measurable))
+      (hrcdisj.mono inter_subset_left inter_subset_left), hy', add_zero]
+  have hcritical_source : ∫⁻ x in c,
+      g x * ENNReal.ofReal (coareaJacobian f x)
+        ∂μHE[Module.finrank ℝ E] = 0 := by
+    apply lintegral_eq_zero_of_ae_eq_zero
+    filter_upwards [ae_restrict_mem hcmeas] with x hx
+    have hzero : (fderiv ℝ f x).toLinearMap.adjoint.normDet = 0 :=
+      (normDet_adjoint_eq_zero_iff_not_surjective
+        (fderiv ℝ f x).toLinearMap).2 hx.2
+    simp only [coareaJacobian, hzero, ENNReal.ofReal_zero, mul_zero, Pi.zero_apply]
+  have hsourcerestrict :
+      (∫⁻ x in s, g x * ENNReal.ofReal (coareaJacobian f x)
+          ∂μHE[Module.finrank ℝ E]) =
+        ∫⁻ x in r, g x * ENNReal.ofReal (coareaJacobian f x)
+          ∂μHE[Module.finrank ℝ E] := by
+    rw [hsplit, lintegral_union hcmeas hrcdisj, hcritical_source, add_zero]
+  refine ⟨hreg.1.aemeasurable.congr htotal_eq.symm, ?_⟩
+  calc
+    (∫⁻ y : F, ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) =
+        ∫⁻ y : F, ∫⁻ x in r ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] :=
+      lintegral_congr_ae htotal_eq
+    _ = ∫⁻ x in r, g x * ENNReal.ofReal (coareaJacobian f x)
+          ∂μHE[Module.finrank ℝ E] := by
+      simpa only [coareaJacobian] using hreg.2
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (coareaJacobian f x)
+          ∂μHE[Module.finrank ℝ E] := hsourcerestrict.symm
+
+theorem aemeasurable_coarea_fiber_integral
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : MeasurableSet s) (g : E → ℝ≥0∞) (hg : Measurable g) :
+    AEMeasurable (fun y : F => ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) volume :=
+  (coarea_formula_weighted_aux hf hEF hs g hg).1
+
+theorem coarea_formula_weighted
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : MeasurableSet s) (g : E → ℝ≥0∞) (hg : Measurable g) :
+    ∫⁻ y : F, ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+      ∫⁻ x in s, g x * ENNReal.ofReal (coareaJacobian f x)
+        ∂μHE[Module.finrank ℝ E] :=
+  (coarea_formula_weighted_aux hf hEF hs g hg).2
+
+theorem coarea_formula
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : MeasurableSet s) :
+    ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (s ∩ f ⁻¹' {y}) =
+      ∫⁻ x in s, ENNReal.ofReal (coareaJacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
+  simpa using coarea_formula_weighted hf hEF hs (fun _ => (1 : ℝ≥0∞)) measurable_const
 
 end LocalCoordinates
 
