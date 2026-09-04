@@ -9,6 +9,12 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Rademacher interface | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `LipschitzWith.ae_differentiableAt` from Mathlib, consumed by `GMT/Area/Jacobian.lean` | canonical finite-dimensional theorem | reused |
 | Rademacher public wrapper | Chapter 2, Section 1, Theorem 1.4, pp. 40-42 | `Area.rademacher` in `GMT/Area/Jacobian.lean` | finite-dimensional real normed-space interface | implemented |
 | Hausdorff image estimate | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `Area.lipschitz_image_hmeasure_le` in `GMT/Area/Jacobian.lean` | measure estimate | implemented |
+| Euclidean Hausdorff normalization bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Measure.euclideanHausdorffMeasure_apply_eq_smul` in `GMT/Measure/Hausdorff.lean` | explicit pointwise bridge from normalized `μHE` to raw `μH` | implemented |
+| Hausdorff image measurability | Chapter 2, Section 1, Theorem 1.8(i), pp. 44-45 | `LipschitzOnWith.nullMeasurableSet_image_hausdorffMeasure` in `GMT/Measure/Hausdorff.lean` | completion-aware measurable-image interface for finite-measure source sets | implemented |
+| Hausdorff fiber multiplicity measurability | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `LipschitzOnWith.aemeasurable_encard_fiber` in `GMT/Measure/Hausdorff.lean` | measurable extended-cardinality fibers for finite Hausdorff source sets | implemented |
+| Hausdorff fiber multiplicity estimate | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `LipschitzOnWith.lintegral_encard_fiber_le` in `GMT/Measure/Hausdorff.lean` | integrated fiber-cardinality bound with sharp `K^d` constant | implemented |
+| Area multiplicity Hausdorff measurability | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `Area.aemeasurable_multiplicity` in `GMT/Area/Formula.lean` | Area-layer corollary exposing the consumer multiplicity definition | implemented |
+| Area multiplicity Hausdorff estimate | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `Area.lintegral_multiplicity_le` in `GMT/Area/Formula.lean` | Area-layer integrated multiplicity bound | implemented |
 | Intrinsic Jacobian | Chapter 2, Section 3, formulas 3.2-3.3, pp. 53-54 | `Area.jacobian`, `Area.jacobianWithin` in `GMT/Area/Jacobian.lean` | rectangular `LinearMap.normDet` interface | implemented |
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
@@ -87,6 +93,32 @@ Area.jacobianWithin {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [Fini
 Area.jacobian_nonneg {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F] (f : E → F) (x : E) :
   0 ≤ Area.jacobian f x
+Measure.euclideanHausdorffMeasure_apply_eq_smul {X} [EMetricSpace X] [MeasurableSpace X]
+  [BorelSpace X] (d : ℕ) (s : Set X) :
+  μHE[d] s = Measure.addHaarScalarFactor (volume : Measure (EuclideanSpace ℝ (Fin d))) μH[d] * μH[d] s
+LipschitzOnWith.aemeasurable_encard_fiber {X Y} [MetricSpace X] [SigmaCompactSpace X]
+  [MetricSpace Y] [MeasurableSpace X] [BorelSpace X] [MeasurableSpace Y] [BorelSpace Y]
+  {f : X → Y} {s : Set X} {K : NNReal} {d : ℝ} (hf : LipschitzOnWith K f s)
+  (hd : 0 ≤ d) (hs : NullMeasurableSet s μH[d]) (hfin : μH[d] s ≠ ∞) :
+  AEMeasurable (fun y => ((s ∩ f ⁻¹' {y}).encard : ℕ∞) : Y → ℝ≥0∞) μH[d]
+LipschitzOnWith.lintegral_encard_fiber_le {X Y} [MetricSpace X] [SigmaCompactSpace X]
+  [MetricSpace Y] [MeasurableSpace X] [BorelSpace X] [MeasurableSpace Y] [BorelSpace Y]
+  {f : X → Y} {s : Set X} {K : NNReal} {d : ℝ} (hf : LipschitzOnWith K f s)
+  (hd : 0 ≤ d) (hs : NullMeasurableSet s μH[d]) (hfin : μH[d] s ≠ ∞) :
+  ∫⁻ y : Y, ((s ∩ f ⁻¹' {y}).encard : ℕ∞) ∂μH[d] ≤ (K : ℝ≥0∞)^d * μH[d] s
+Area.aemeasurable_multiplicity {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] {f : E → E} {s : Set E}
+  {K : NNReal} (hf : LipschitzOnWith K f s)
+  (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
+  (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
+  AEMeasurable (Area.multiplicity f s) μH[(Module.finrank ℝ E : ℝ)]
+Area.lintegral_multiplicity_le {E} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E] {f : E → E} {s : Set E}
+  {K : NNReal} (hf : LipschitzOnWith K f s)
+  (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
+  (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
+  ∫⁻ y : E, Area.multiplicity f s y ∂μH[(Module.finrank ℝ E : ℝ)] ≤
+    (K : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ) * μH[(Module.finrank ℝ E : ℝ)] s
 Area.jacobian_of_hasFDerivAt {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
   {f : E → F} {L : E →L[ℝ] F} {x : E}

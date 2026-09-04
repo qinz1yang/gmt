@@ -1,4 +1,5 @@
 import GMT.Area.Jacobian
+import GMT.Measure.Hausdorff
 import Mathlib.MeasureTheory.Function.Jacobian
 import Mathlib.MeasureTheory.Function.JacobianOneDim
 import Mathlib.Data.Set.Card.Arithmetic
@@ -13,6 +14,34 @@ namespace Area
 
 def multiplicity {E F : Type*} (f : E → F) (s : Set E) (y : F) : ℝ≥0∞ :=
   ENat.toENNReal (encard (s ∩ f ⁻¹' {y}))
+
+theorem aemeasurable_multiplicity
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+    {f : E → E} {s : Set E} {K : ℝ≥0}
+    (hf : LipschitzOnWith K f s) (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
+    (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
+    AEMeasurable (multiplicity f s) μH[(Module.finrank ℝ E : ℝ)] := by
+  change AEMeasurable
+    (fun y => ENat.toENNReal (encard (s ∩ f ⁻¹' {y})))
+    μH[(Module.finrank ℝ E : ℝ)]
+  exact LipschitzOnWith.aemeasurable_encard_fiber hf
+    (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity) hs hfin
+
+theorem lintegral_multiplicity_le
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
+    {f : E → E} {s : Set E} {K : ℝ≥0}
+    (hf : LipschitzOnWith K f s) (hs : NullMeasurableSet s μH[(Module.finrank ℝ E : ℝ)])
+    (hfin : μH[(Module.finrank ℝ E : ℝ)] s ≠ ∞) :
+    ∫⁻ y : E, multiplicity f s y ∂μH[(Module.finrank ℝ E : ℝ)] ≤
+      (K : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ) *
+        μH[(Module.finrank ℝ E : ℝ)] s := by
+  change (∫⁻ y : E, ENat.toENNReal (encard (s ∩ f ⁻¹' {y}))
+      ∂μH[(Module.finrank ℝ E : ℝ)]) ≤
+    (K : ℝ≥0∞) ^ (Module.finrank ℝ E : ℝ) * μH[(Module.finrank ℝ E : ℝ)] s
+  exact LipschitzOnWith.lintegral_encard_fiber_le hf
+    (show (0 : ℝ) ≤ Module.finrank ℝ E by positivity) hs hfin
 
 theorem multiplicity_eq_zero_of_not_mem_image {E F : Type*} {f : E → F} {s : Set E} {y : F}
     (hy : y ∉ f '' s) : multiplicity f s y = 0 := by
