@@ -1,3 +1,6 @@
+import GMT.Area.Jacobian
+import GMT.Area.Formula
+import GMT.Area.Coarea
 import GMT.Linear.Grassmannian.Basic
 import GMT.Linear.Trace
 import GMT.Analysis.Radial

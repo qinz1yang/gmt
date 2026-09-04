@@ -34,6 +34,20 @@ completed here.
 | Normalized Hausdorff measure and the unit-ball constant, Section 2, pp. 9-13 | [`MeasureTheory.euclideanUnitBallVolume`](GMT/Measure/Density.lean#L14), [`MeasureTheory.euclideanHausdorffMeasure_closedBall`](GMT/Measure/Density.lean#L45) |
 | Lower and upper densities (3.1) with `A = X`, p. 13 | [`MeasureTheory.Measure.densityRatio`](GMT/Measure/Density.lean#L93), [`MeasureTheory.Measure.lowerDensity`](GMT/Measure/Density.lean#L97), [`MeasureTheory.Measure.upperDensity`](GMT/Measure/Density.lean#L101) |
 
+### Chapter 2: Area and coarea foundations
+
+The reusable Jacobian and linear/product-measure interfaces are recorded in
+[`AREA_ACCEPTANCE.md`](AREA_ACCEPTANCE.md). The completed declarations include the scalar
+Lipschitz extension theorem, the Mathlib Rademacher interface, the Hausdorff image estimate,
+the intrinsic rectangular Jacobian, the linear area formula, square-dimensional injective and
+general non-injective weighted area formulas, fiber multiplicity, the finite and countable
+injective-partition engines, and the product-volume projection coarea identities (including
+intrinsic fiber-measure and weighted forms), and the arbitrary linear coarea identities over the
+original codomain (including weighted, rank-deficient, and impossible-dimension cases) with their
+intrinsic adjoint norm-determinant factor. Simon's C¹ approximation and Hausdorff-fiber
+estimates (Theorems 1.5 and 1.9), and the general nonlinear coarea
+formulas, and Simon's `C¹` Sard-type fiber decomposition are not yet claimed as completed.
+
 ### Chapter 4: Rectifiable n-varifolds
 
 | Simon | Lean statements |
