@@ -1,5 +1,5 @@
+import GMT.Linear.NormDet
 import Mathlib.Analysis.Calculus.Rademacher
-import Mathlib.Analysis.InnerProductSpace.NormDet
 import Mathlib.MeasureTheory.Measure.Lebesgue.VolumeOfBalls
 
 noncomputable section
@@ -7,25 +7,6 @@ noncomputable section
 open Set
 open MeasureTheory
 open scoped ENNReal MeasureTheory NNReal
-
-namespace LinearMap
-
-theorem normDet_adjoint_of_finrank_eq
-    {U V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
-    [FiniteDimensional ℝ U] [NormedAddCommGroup V] [InnerProductSpace ℝ V]
-    [FiniteDimensional ℝ V] (L : U →ₗ[ℝ] V)
-    (h : Module.finrank ℝ U = Module.finrank ℝ V) :
-    L.adjoint.normDet = L.normDet := by
-  let bU : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ U :=
-    stdOrthonormalBasis ℝ U
-  let bV : OrthonormalBasis (Fin (Module.finrank ℝ U)) ℝ V :=
-    (stdOrthonormalBasis ℝ V).reindex (finCongr h.symm)
-  rw [L.normDet_eq_norm_det_toMatrix bU bV]
-  rw [L.adjoint.normDet_eq_norm_det_toMatrix bV bU]
-  rw [LinearMap.toMatrix_adjoint]
-  simp
-
-end LinearMap
 
 namespace Area
 
@@ -101,6 +82,11 @@ theorem jacobian_linearMap (L : E →ₗ[ℝ] F) (x : E) :
   let L' : E →L[ℝ] F := L.toContinuousLinearMap
   simpa [L'] using jacobian_continuousLinearMap L' x
 
+theorem measurable_jacobian [MeasurableSpace E] [BorelSpace E]
+    [FiniteDimensional ℝ F] (f : E → F) : Measurable (jacobian f) := by
+  exact ContinuousLinearMap.continuous_normDet.measurable.comp
+    (measurable_fderiv ℝ f)
+
 section
 
 variable [FiniteDimensional ℝ F]
@@ -158,6 +144,11 @@ theorem coareaJacobian_zero (x : E) :
 theorem coareaJacobian_id (x : E) : coareaJacobian (id : E → E) x = 1 := by
   rw [coareaJacobian]
   simp
+
+theorem measurable_coareaJacobian [MeasurableSpace E] [BorelSpace E]
+    (f : E → F) : Measurable (coareaJacobian f) := by
+  exact ContinuousLinearMap.continuous_normDet.measurable.comp
+    (ContinuousLinearMap.adjoint.continuous.measurable.comp (measurable_fderiv ℝ f))
 
 end
 

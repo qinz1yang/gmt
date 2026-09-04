@@ -18,6 +18,9 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Area multiplicity Hausdorff estimate | Chapter 2, Section 1, Theorem 1.8(ii), pp. 44-45 | `Area.lintegral_multiplicity_le` in `GMT/Area/Formula.lean` | Area-layer integrated multiplicity bound | implemented |
 | Intrinsic Jacobian | Chapter 2, Section 3, formulas 3.2-3.3, pp. 53-54 | `Area.jacobian`, `Area.jacobianWithin` in `GMT/Area/Jacobian.lean` | rectangular `LinearMap.normDet` interface | implemented |
 | Intrinsic coarea Jacobian | Chapter 2, Section 6, formula 6.2, p. 66 | `Area.coareaJacobian` in `GMT/Area/Jacobian.lean` | adjoint `LinearMap.normDet` interface, with nonsurjective vanishing and Gram-determinant identity | implemented |
+| Rectangular norm-determinant continuity | Chapter 2, Section 3, formula 3.3, p. 53; Section 6, formula 6.2, p. 66 | `ContinuousLinearMap.continuous_normDet` in `GMT/Linear/NormDet.lean` | lower-layer continuity engine for area and coarea Jacobian measurability | implemented |
+| Area Jacobian measurability | Chapter 2, Section 3, formulas 3.3-3.5, pp. 53-54 | `Area.measurable_jacobian` in `GMT/Area/Jacobian.lean` | measurable integrand interface obtained from measurable `fderiv` and norm-determinant continuity | implemented |
+| Coarea Jacobian measurability | Chapter 2, Section 6, formulas 6.3 and 6.6, pp. 66-67 | `Area.measurable_coareaJacobian` in `GMT/Area/Jacobian.lean` | measurable integrand interface obtained from measurable `fderiv`, continuous adjoint, and norm-determinant continuity | implemented |
 | Linear area formula | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula` in `GMT/Area/Jacobian.lean` | canonical linear primary | implemented |
 | Linear area formula with volume bridge | Chapter 2, Section 3, formula 3.1, p. 53 | `Area.linear_area_formula_eq_volume` in `GMT/Area/Jacobian.lean` | normalized-measure corollary | implemented |
 | Injective area formula | Chapter 2, Section 3, formula 3.2, pp. 53-54 | `Area.injective_area_formula` in `GMT/Area/Formula.lean` | square-dimensional differentiable interface | implemented with equal domain/codomain |
@@ -61,13 +64,15 @@ The following load-bearing public dependencies are also part of the delivered su
 supporting API rather than additional Simon headlines: `Area.jacobian_nonneg`,
 `Area.jacobian_of_hasFDerivAt`, `Area.jacobian_of_hasFDerivWithinAt`,
 `Area.jacobian_continuousLinearMap`, `Area.jacobian_linearMap`, `Area.jacobian_zero`,
-`Area.jacobian_id`, `LinearMap.normDet_adjoint_of_finrank_eq`,
+`Area.jacobian_id`, `Area.measurable_jacobian`,
+`LinearMap.normDet_adjoint_of_finrank_eq`, `ContinuousLinearMap.continuous_normDet`,
 `Area.coareaJacobian_nonneg`, `Area.coareaJacobian_of_hasFDerivAt`,
 `Area.coareaJacobian_continuousLinearMap`, `Area.coareaJacobian_linearMap`,
 `Area.coareaJacobian_eq_jacobian_of_finrank_eq`,
 `Area.coareaJacobian_eq_zero_of_not_surjective`,
 `Area.coareaJacobian_eq_zero_of_finrank_lt`, `Area.coareaJacobian_sq`,
 `Area.coareaJacobian_zero`, `Area.coareaJacobian_id`,
+`Area.measurable_coareaJacobian`,
 `Area.multiplicity_eq_zero_of_not_mem_image`,
 `Area.multiplicity_eq_one_of_injOn`, `Area.weightedMultiplicity`,
 `Area.weightedMultiplicity_one`, `Area.weightedMultiplicity_comp`,
@@ -126,6 +131,18 @@ Area.jacobianWithin {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [Fini
 Area.jacobian_nonneg {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F] (f : E → F) (x : E) :
   0 ≤ Area.jacobian f x
+ContinuousLinearMap.continuous_normDet {E F} [NormedAddCommGroup E]
+  [InnerProductSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
+  [InnerProductSpace ℝ F] [FiniteDimensional ℝ F] :
+  Continuous (fun L : E →L[ℝ] F => L.toLinearMap.normDet)
+Area.measurable_jacobian {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [MeasurableSpace E] [BorelSpace E] [FiniteDimensional ℝ F] (f : E → F) :
+  Measurable (Area.jacobian f)
+Area.measurable_coareaJacobian {E F} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+  [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E] (f : E → F) :
+  Measurable (Area.coareaJacobian f)
 Measure.euclideanHausdorffMeasure_apply_eq_smul {X} [EMetricSpace X] [MeasurableSpace X]
   [BorelSpace X] (d : ℕ) (s : Set X) :
   μHE[d] s = Measure.addHaarScalarFactor (volume : Measure (EuclideanSpace ℝ (Fin d))) μH[d] * μH[d] s
