@@ -67,7 +67,7 @@ This matrix records the current checked source state against the Chapter 2 contr
 | Dimension-lowering C¹ image-null corollary | Chapter 2, Section 6, formula 6.4, pp. 66-67 | `Area.dimension_lowering_image_null` in `GMT/Area/Coarea.lean` | full image nullity when domain dimension is smaller than codomain | implemented via Hausdorff-dimension bound; not the coarea-derived Sard proof |
 | Finite-partition image-weighted area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_finite_injective_partition_image_weighted` in `GMT/Area/Formula.lean` | reusable finite injective-partition engine for target weights | implemented |
 | Countable-partition area engine | Chapter 2, Section 3, formulas 3.4-3.5, p. 54 | `Area.area_formula_of_countable_injective_partition` in `GMT/Area/Formula.lean` | reusable countable injective-partition engine for source-weighted fiber sums | implemented |
-| General coarea formula | Chapter 2, Section 6, formula 6.3, p. 66 | no declaration | nonlinear fiber integral | not implemented |
+| General coarea formula | Chapter 2, Section 6, formula 6.3, p. 66 | no public declaration | nonlinear fiber integral | private measurable weighted formula proved on every measurable set where `fderiv` is surjective; rank-deficient contribution remains open |
 | C1 Sard-type consequence | Chapter 2, Section 6, formula 6.4, pp. 66-67 | `Area.critical_image_null` in `GMT/Area/Coarea.lean` | square-dimensional critical-image null result | partial only; not Simon's m < n fiber conclusion |
 
 The following load-bearing public dependencies are also part of the delivered surface. They are
@@ -135,8 +135,8 @@ Area.lipschitz_image_hmeasure_le {X Y} [EMetricSpace X] [EMetricSpace Y]
   μH[d] (f '' s) ≤ ↑K ^ d * μH[d] s
 Area.lipschitz_dimension_lowering_image_null {E F} [NormedAddCommGroup E]
   [NormedSpace ℝ E] [FiniteDimensional ℝ E] [NormedAddCommGroup F]
-  [NormedSpace ℝ F] [FiniteDimensional ℝ F] [MeasurableSpace E]
-  [BorelSpace E] [MeasurableSpace F] [BorelSpace F] {f : E → F} {K : NNReal}
+  [NormedSpace ℝ F] [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F]
+  [BorelSpace F] {f : E → F} {K : NNReal}
   (hf : LipschitzWith K f) (hEF : finrank ℝ E < finrank ℝ F) :
   μHE[finrank ℝ F] (Set.range f) = 0
 Area.rademacher {E F} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
@@ -630,6 +630,11 @@ theorems, closed-set extension theorem, finite-dimensional approximation engine,
 corollary have the exact signatures recorded above. `lake build GMT.Analysis.Lipschitz
 GMT.Analysis.Whitney` is silent, all available declaration linters pass, and every checked axiom
 closure is `[propext, Classical.choice, Quot.sound]`.
+The nonlinear coarea chart construction, inverse-function parametrization, fiber-Jacobian identity,
+measurable local weighted formula, and countable disjoint regular-locus assembly are private in
+`GMT.Area.Coarea`. `lake build GMT.Area.Jacobian GMT.Area.Formula GMT.Area.Coarea` is silent and the
+available declaration linters pass; the remaining coarea obligation is the rank-deficient critical-set
+fiber integral.
 External identity and subsingleton-codomain edge probes for the surjective theorem also elaborate
 successfully. The requested
 `defLemma` linter is not registered by this Mathlib revision, so it cannot be run or reported as a

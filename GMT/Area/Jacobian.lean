@@ -24,8 +24,7 @@ theorem lipschitz_image_hmeasure_le {X Y : Type*} [EMetricSpace X] [EMetricSpace
 theorem lipschitz_dimension_lowering_image_null
     {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
     [FiniteDimensional ℝ E] [NormedAddCommGroup F] [NormedSpace ℝ F]
-    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
-    [MeasurableSpace F] [BorelSpace F]
+    [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
     {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
     (hEF : Module.finrank ℝ E < Module.finrank ℝ F) :
     μHE[Module.finrank ℝ F] (Set.range f) = 0 := by

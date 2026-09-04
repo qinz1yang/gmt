@@ -1,4 +1,5 @@
 import GMT.Area.Formula
+import Mathlib.Analysis.Calculus.InverseFunctionTheorem.ContDiff
 import Mathlib.Analysis.InnerProductSpace.ProdL2
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.MeasureTheory.Measure.Haar.InnerProductSpace
@@ -738,5 +739,826 @@ theorem critical_image_null
     volume (f '' s) = 0 := by
   exact MeasureTheory.addHaar_image_eq_zero_of_det_fderivWithin_eq_zero
     (volume : Measure E) hf' hcrit
+
+private theorem normDet_withLp_first_identity
+    {F K K' : Type*}
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [NormedAddCommGroup K] [InnerProductSpace ℝ K] [FiniteDimensional ℝ K]
+    [NormedAddCommGroup K'] [InnerProductSpace ℝ K'] [FiniteDimensional ℝ K']
+    (Q : WithLp 2 (F × K) →ₗ[ℝ] WithLp 2 (F × K'))
+    (D : K →ₗ[ℝ] K') (hK : Module.finrank ℝ K = Module.finrank ℝ K')
+    (hfst : ∀ x, (Q x).fst = x.fst)
+    (hsnd : ∀ z, (Q (WithLp.toLp 2 (0, z))).snd = D z) :
+    Q.normDet = D.normDet := by
+  let bF := stdOrthonormalBasis ℝ F
+  let bK := stdOrthonormalBasis ℝ K
+  let bK' := (stdOrthonormalBasis ℝ K').reindex (Fin.castOrderIso hK.symm).toEquiv
+  let Q0 : F × K →ₗ[ℝ] F × K' :=
+    (WithLp.linearEquiv 2 ℝ (F × K')).toLinearMap ∘ₗ Q ∘ₗ
+      (WithLp.linearEquiv 2 ℝ (F × K)).symm.toLinearMap
+  rw [LinearMap.normDet_eq_norm_det_toMatrix Q (bF.prod bK) (bF.prod bK')]
+  rw [LinearMap.normDet_eq_norm_det_toMatrix D bK bK']
+  have hmatrix :
+      LinearMap.toMatrix (bF.prod bK).toBasis (bF.prod bK').toBasis Q =
+        LinearMap.toMatrix (bF.toBasis.prod bK.toBasis)
+          (bF.toBasis.prod bK'.toBasis) Q0 := by
+    ext i j
+    rcases i with i | i <;> rcases j with j | j <;>
+      simp [LinearMap.toMatrix_apply', OrthonormalBasis.prod, Module.Basis.prod_repr_inl,
+        Module.Basis.prod_repr_inr, Q0]
+  rw [hmatrix]
+  have hblocks :
+      LinearMap.toMatrix (bF.toBasis.prod bK.toBasis)
+          (bF.toBasis.prod bK'.toBasis) Q0 =
+        Matrix.fromBlocks 1 0
+          (LinearMap.toMatrix bF.toBasis bK'.toBasis
+            ((LinearMap.snd ℝ F K') ∘ₗ Q0 ∘ₗ LinearMap.inl ℝ F K))
+          (LinearMap.toMatrix bK.toBasis bK'.toBasis D) := by
+    ext i j
+    rcases i with i | i <;> rcases j with j | j <;>
+      simp [LinearMap.toMatrix_apply', Module.Basis.prod_repr_inl,
+        Module.Basis.prod_repr_inr, Matrix.one_apply, Q0, hfst, hsnd]
+  rw [hblocks, Matrix.det_fromBlocks_zero₁₂]
+  simp
+
+private theorem normDet_comp_vertical_mul_normDet
+    {E F K : Type*}
+    [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [NormedAddCommGroup K] [InnerProductSpace ℝ K] [FiniteDimensional ℝ K]
+    (A : E →ₗ[ℝ] WithLp 2 (F × K)) (hA : Function.Bijective A)
+    (L : E →ₗ[ℝ] F) (hL : ∀ x, (A x).fst = L x) :
+    ((LinearEquiv.ofBijective A hA).symm.toLinearMap ∘ₗ
+        ((WithLp.linearEquiv 2 ℝ (F × K)).symm.toLinearMap ∘ₗ
+          LinearMap.inr ℝ F K)).normDet * A.normDet =
+      L.adjoint.normDet := by
+  let e : E ≃ₗ[ℝ] WithLp 2 (F × K) := LinearEquiv.ofBijective A hA
+  let I : K →ₗ[ℝ] WithLp 2 (F × K) :=
+    (WithLp.linearEquiv 2 ℝ (F × K)).symm.toLinearMap ∘ₗ LinearMap.inr ℝ F K
+  let B : K →ₗ[ℝ] E := e.symm.toLinearMap ∘ₗ I
+  have hLsurj : Function.Surjective L := by
+    intro y
+    obtain ⟨x, hx⟩ := hA.2 (WithLp.toLp 2 (y, 0))
+    refine ⟨x, ?_⟩
+    rw [← hL x, hx]
+    rfl
+  let K0 : Submodule ℝ E := LinearMap.ker L
+  have hBmem : ∀ z, B z ∈ K0 := by
+    intro z
+    change L (B z) = 0
+    rw [← hL (B z)]
+    change (A (e.symm (I z))).fst = 0
+    calc
+      (A (e.symm (I z))).fst = (I z).fst := by
+        exact congrArg WithLp.fst (e.apply_symm_apply (I z))
+      _ = 0 := rfl
+  let D : K →ₗ[ℝ] K0 := B.codRestrict K0 hBmem
+  let C : E →ₗ[ℝ] WithLp 2 (F × K0) := linearCoareaCoordinates L
+  let Q : WithLp 2 (F × K) →ₗ[ℝ] WithLp 2 (F × K0) :=
+    C ∘ₗ e.symm.toLinearMap
+  have hdimA : Module.finrank ℝ E = Module.finrank ℝ (WithLp 2 (F × K)) :=
+    e.finrank_eq
+  have hdimK : Module.finrank ℝ K = Module.finrank ℝ K0 := by
+    have hWith : Module.finrank ℝ (WithLp 2 (F × K)) =
+        Module.finrank ℝ (F × K) :=
+      (WithLp.linearEquiv 2 ℝ (F × K)).finrank_eq
+    have hdimA' : Module.finrank ℝ E = Module.finrank ℝ F + Module.finrank ℝ K := by
+      rw [hdimA, hWith, Module.finrank_prod]
+    have hrange : Module.finrank ℝ (LinearMap.range L) = Module.finrank ℝ F := by
+      rw [LinearMap.range_eq_top.mpr hLsurj]
+      simp
+    have hrank := L.finrank_range_add_finrank_ker
+    change Module.finrank ℝ K = Module.finrank ℝ (LinearMap.ker L)
+    omega
+  have hQfst : ∀ x, (Q x).fst = x.fst := by
+    intro x
+    change L (e.symm x) = x.fst
+    rw [← hL (e.symm x)]
+    exact congrArg WithLp.fst (e.apply_symm_apply x)
+  have hQsnd : ∀ z, (Q (WithLp.toLp 2 (0, z))).snd = D z := by
+    intro z
+    change K0.orthogonalProjectionOnto (e.symm (I z)) = D z
+    change K0.orthogonalProjectionOnto (B z) = D z
+    change K0.orthogonalProjectionOnto (B z) = ⟨B z, hBmem z⟩
+    exact K0.orthogonalProjectionOnto_mem_subspace_eq_self ⟨B z, hBmem z⟩
+  have hQdet : Q.normDet = D.normDet :=
+    normDet_withLp_first_identity Q D hdimK hQfst hQsnd
+  have hDdet : D.normDet = B.normDet := by
+    exact LinearMap.normDet_codRestrict hBmem
+  have hfactor : C = Q ∘ₗ A := by
+    rw [show A = e.toLinearMap by rfl]
+    ext x
+    simp [Q]
+  rw [← linear_coarea_coordinates_normDet L hLsurj, show linearCoareaCoordinates L = C from rfl]
+  rw [hfactor, LinearMap.normDet_comp_of_finrank_eq A Q hdimA, hQdet, hDdet]
+
+private theorem linearCoareaCoordinates_bijective
+    {E F : Type*}
+    [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    (L : E →ₗ[ℝ] F) (hL : Function.Surjective L) :
+    Function.Bijective (linearCoareaCoordinates L) := by
+  constructor
+  · intro x y hxy
+    have hzero : linearCoareaCoordinates L (x - y) = 0 := by
+      rw [map_sub, hxy, sub_self]
+    have hLx : L (x - y) = 0 := by
+      have := congrArg WithLp.fst hzero
+      simpa using this
+    have hxK : x - y ∈ LinearMap.ker L := hLx
+    have hPx : (LinearMap.ker L).orthogonalProjectionOnto (x - y) = 0 := by
+      have := congrArg WithLp.snd hzero
+      simpa using this
+    have hself :=
+      (LinearMap.ker L).orthogonalProjectionOnto_mem_subspace_eq_self ⟨x - y, hxK⟩
+    have : x - y = 0 := by
+      simpa [hPx] using (congrArg Subtype.val hself).symm
+    exact sub_eq_zero.mp this
+  · intro p
+    obtain ⟨x, hx⟩ := hL p.fst
+    let P := (LinearMap.ker L).orthogonalProjectionOnto
+    let z : LinearMap.ker L := p.snd
+    refine ⟨x - (P x : E) + (z : E), ?_⟩
+    apply (WithLp.equiv 2 (F × LinearMap.ker L)).injective
+    apply Prod.ext
+    · change L (x - (P x : E) + (z : E)) = p.fst
+      rw [L.map_add, L.map_sub, hx]
+      have hPx : L (P x : E) = 0 := (P x).2
+      have hz : L (z : E) = 0 := z.2
+      rw [hPx, hz, sub_zero, add_zero]
+    · change P (x - (P x : E) + (z : E)) = z
+      rw [map_add, map_sub]
+      have hPP : P (P x : E) = P x :=
+        (LinearMap.ker L).orthogonalProjectionOnto_mem_subspace_eq_self (P x)
+      have hPz : P (z : E) = z :=
+        (LinearMap.ker L).orthogonalProjectionOnto_mem_subspace_eq_self z
+      rw [hPP, hPz, sub_self, zero_add]
+
+section LocalCoordinates
+
+variable {E F : Type*}
+  [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+  [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+  [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+
+private def coareaCoordinatesAt (f : E → F) (a : E) (x : E) :
+    WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) :=
+  WithLp.toLp 2
+    (f x, (LinearMap.ker (fderiv ℝ f a).toLinearMap).orthogonalProjectionOnto (x - a))
+
+private def coareaCoordinatesFDerivAt (f : E → F) (a x : E) :
+    E →L[ℝ] WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) :=
+  (WithLp.prodContinuousLinearEquiv 2 ℝ F
+      (LinearMap.ker (fderiv ℝ f a).toLinearMap)).symm.toContinuousLinearMap.comp
+    ((fderiv ℝ f x).prod
+      (LinearMap.ker (fderiv ℝ f a).toLinearMap).orthogonalProjectionOnto)
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem hasFDerivAt_coareaCoordinatesAt
+    {f : E → F} (hf : Differentiable ℝ f) (a x : E) :
+    HasFDerivAt (coareaCoordinatesAt f a) (coareaCoordinatesFDerivAt f a x) x := by
+  let K := LinearMap.ker (fderiv ℝ f a).toLinearMap
+  have hpair : HasFDerivAt
+      (fun z : E => (f z, K.orthogonalProjectionOnto (z - a)))
+      ((fderiv ℝ f x).prod K.orthogonalProjectionOnto) x := by
+    exact (hf x).hasFDerivAt.prodMk
+      (K.orthogonalProjectionOnto.hasFDerivAt.comp x (hasFDerivAt_sub_const a))
+  exact (WithLp.prodContinuousLinearEquiv 2 ℝ F K).symm.toContinuousLinearMap.hasFDerivAt.comp
+    x hpair
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem coareaCoordinatesFDerivAt_self
+    (f : E → F) (a : E) :
+    (coareaCoordinatesFDerivAt f a a).toLinearMap =
+      linearCoareaCoordinates (fderiv ℝ f a).toLinearMap := by
+  rfl
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem contDiff_coareaCoordinatesAt
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E) :
+    ContDiff ℝ 1 (coareaCoordinatesAt f a) := by
+  let K := LinearMap.ker (fderiv ℝ f a).toLinearMap
+  let T := (WithLp.prodContinuousLinearEquiv 2 ℝ F K).symm.toContinuousLinearMap
+  change ContDiff ℝ 1 (fun x => T (f x, K.orthogonalProjectionOnto (x - a)))
+  exact T.contDiff.comp
+    (hf.prodMk (K.orthogonalProjectionOnto.contDiff.comp (contDiff_id.sub contDiff_const)))
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem continuous_coareaCoordinatesFDerivAt_toLinearMap
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E) :
+    Continuous (fun x => (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet) := by
+  apply ContinuousLinearMap.continuous_normDet.comp
+  let K := LinearMap.ker (fderiv ℝ f a).toLinearMap
+  let T := (WithLp.prodContinuousLinearEquiv 2 ℝ F K).symm.toContinuousLinearMap
+  have hprod : Continuous (fun x => (fderiv ℝ f x).prod K.orthogonalProjectionOnto) :=
+    (ContinuousLinearMap.prodₗᵢ ℝ).continuous.comp
+      ((hf.continuous_fderiv one_ne_zero).prodMk continuous_const)
+  exact continuous_const.clm_comp hprod
+
+private def coareaCoordinatesEquivAt
+    (f : E → F) (a : E) (ha : Function.Surjective (fderiv ℝ f a)) :
+    E ≃L[ℝ] WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) :=
+  (LinearEquiv.ofBijective (coareaCoordinatesFDerivAt f a a).toLinearMap (by
+    rw [coareaCoordinatesFDerivAt_self]
+    exact linearCoareaCoordinates_bijective _ ha)).toContinuousLinearEquiv
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem coareaCoordinatesEquivAt_coe
+    (f : E → F) (a : E) (ha : Function.Surjective (fderiv ℝ f a)) :
+    (coareaCoordinatesEquivAt f a ha :
+      E →L[ℝ] WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)) =
+      coareaCoordinatesFDerivAt f a a := by
+  rfl
+
+private def regularCoareaChart
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    OpenPartialHomeomorph E
+      (WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)) :=
+  (contDiff_coareaCoordinatesAt hf a).contDiffAt.toOpenPartialHomeomorph
+    (coareaCoordinatesAt f a)
+    (by
+      rw [coareaCoordinatesEquivAt_coe f a ha]
+      exact hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a a)
+    one_ne_zero
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem regularCoareaChart_apply
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) (x : E) :
+    regularCoareaChart hf a ha x = coareaCoordinatesAt f a x := by
+  rfl
+
+private def regularCoareaChartSource
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) : Set E :=
+  (regularCoareaChart hf a ha).source ∩
+    {x | (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet ≠ 0}
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem isOpen_regularCoareaChartSource
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    IsOpen (regularCoareaChartSource hf a ha) := by
+  apply (regularCoareaChart hf a ha).open_source.inter
+  exact isClosed_singleton.isOpen_compl.preimage
+    (continuous_coareaCoordinatesFDerivAt_toLinearMap hf a)
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem self_mem_regularCoareaChartSource
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    a ∈ regularCoareaChartSource hf a ha := by
+  refine ⟨(contDiff_coareaCoordinatesAt hf a).contDiffAt.mem_toOpenPartialHomeomorph_source
+    (by
+      rw [coareaCoordinatesEquivAt_coe f a ha]
+      exact hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a a)
+    one_ne_zero, ?_⟩
+  change (coareaCoordinatesFDerivAt f a a).toLinearMap.normDet ≠ 0
+  rw [coareaCoordinatesFDerivAt_self]
+  exact (LinearMap.normDet_ne_zero_tfae
+    (linearCoareaCoordinates (fderiv ℝ f a).toLinearMap) |>.out 4 0 |>.mp
+      (linearCoareaCoordinates_bijective _ ha).1)
+
+private def regularCoareaChartInverse
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) → E :=
+  by
+    classical
+    exact (regularCoareaChart hf a ha).target.piecewise
+      (regularCoareaChart hf a ha).symm 0
+
+omit [FiniteDimensional ℝ F] in
+private theorem measurable_regularCoareaChartInverse
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    Measurable (regularCoareaChartInverse hf a ha) := by
+  classical
+  change Measurable ((regularCoareaChart hf a ha).target.piecewise
+    (regularCoareaChart hf a ha).symm (fun _ => 0))
+  exact (regularCoareaChart hf a ha).continuousOn_symm.measurable_piecewise
+    continuous_const.continuousOn (regularCoareaChart hf a ha).open_target.measurableSet
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem regularCoareaChartInverse_eq_symm
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {p : WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)}
+    (hp : p ∈ (regularCoareaChart hf a ha).target) :
+    regularCoareaChartInverse hf a ha p = (regularCoareaChart hf a ha).symm p := by
+  classical
+  exact Set.piecewise_eq_of_mem _ _ _ hp
+
+private def coareaCoordinatesEquivAtPoint
+    (f : E → F) (a x : E) (ha : Function.Surjective (fderiv ℝ f a))
+    (hx : (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet ≠ 0) :
+    E ≃L[ℝ] WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) :=
+  (LinearEquiv.ofBijective (coareaCoordinatesFDerivAt f a x).toLinearMap (by
+    have hinj : Function.Injective (coareaCoordinatesFDerivAt f a x) :=
+      LinearMap.normDet_ne_zero_tfae
+        (coareaCoordinatesFDerivAt f a x).toLinearMap |>.out 0 4 |>.mp hx
+    have hdim := (coareaCoordinatesEquivAt f a ha).toLinearEquiv.finrank_eq
+    exact ⟨hinj,
+      (LinearMap.injective_iff_surjective_of_finrank_eq_finrank hdim).mp hinj⟩
+    )).toContinuousLinearEquiv
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem coareaCoordinatesEquivAtPoint_coe
+    (f : E → F) (a x : E) (ha : Function.Surjective (fderiv ℝ f a))
+    (hx : (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet ≠ 0) :
+    (coareaCoordinatesEquivAtPoint f a x ha hx :
+      E →L[ℝ] WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)) =
+      coareaCoordinatesFDerivAt f a x := by
+  rfl
+
+private def coareaVertical
+    (f : E → F) (a : E) :
+    LinearMap.ker (fderiv ℝ f a).toLinearMap →L[ℝ]
+      WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) :=
+  (WithLp.prodContinuousLinearEquiv 2 ℝ F
+      (LinearMap.ker (fderiv ℝ f a).toLinearMap)).symm.toContinuousLinearMap.comp
+    (ContinuousLinearMap.inr ℝ F (LinearMap.ker (fderiv ℝ f a).toLinearMap))
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem hasFDerivAt_regularCoareaChartInverse
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {p : WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)}
+    (hp : p ∈ (regularCoareaChart hf a ha).target)
+    (hx : (coareaCoordinatesFDerivAt f a
+      ((regularCoareaChart hf a ha).symm p)).toLinearMap.normDet ≠ 0) :
+    HasFDerivAt (regularCoareaChartInverse hf a ha)
+      ((coareaCoordinatesEquivAtPoint f a
+        ((regularCoareaChart hf a ha).symm p) ha hx).symm :
+          WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap) →L[ℝ] E) p := by
+  let e := regularCoareaChart hf a ha
+  let A := coareaCoordinatesEquivAtPoint f a (e.symm p) ha hx
+  have hforward : HasFDerivAt e (A : E →L[ℝ] _) (e.symm p) := by
+    rw [show (e : E → _) = coareaCoordinatesAt f a from rfl]
+    rw [coareaCoordinatesEquivAtPoint_coe]
+    exact hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a (e.symm p)
+  have hinverse : HasFDerivAt e.symm (A.symm : _ →L[ℝ] E) p :=
+    e.hasFDerivAt_symm hp hforward
+  apply hinverse.congr_of_eventuallyEq
+  filter_upwards [e.open_target.mem_nhds hp] with q hq
+  simpa [e] using regularCoareaChartInverse_eq_symm hf a ha hq
+
+private def regularCoareaFiberParam
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) (y : F)
+    (z : LinearMap.ker (fderiv ℝ f a).toLinearMap) : E :=
+  regularCoareaChartInverse hf a ha (WithLp.toLp 2 (y, z))
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem hasFDerivAt_regularCoareaFiberParam
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) (y : F)
+    {z : LinearMap.ker (fderiv ℝ f a).toLinearMap}
+    (hp : WithLp.toLp 2 (y, z) ∈ (regularCoareaChart hf a ha).target)
+    (hx : (coareaCoordinatesFDerivAt f a
+      ((regularCoareaChart hf a ha).symm (WithLp.toLp 2 (y, z)))).toLinearMap.normDet ≠ 0) :
+    HasFDerivAt (regularCoareaFiberParam hf a ha y)
+      ((coareaCoordinatesEquivAtPoint f a
+          ((regularCoareaChart hf a ha).symm (WithLp.toLp 2 (y, z))) ha hx).symm.toContinuousLinearMap.comp
+        (coareaVertical f a)) z := by
+  change HasFDerivAt
+    (fun w : LinearMap.ker (fderiv ℝ f a).toLinearMap =>
+      regularCoareaChartInverse hf a ha (WithLp.toLp 2 (y, w))) _ z
+  apply (hasFDerivAt_regularCoareaChartInverse hf a ha hp hx).comp z
+  let T := (WithLp.prodContinuousLinearEquiv 2 ℝ F
+    (LinearMap.ker (fderiv ℝ f a).toLinearMap)).symm.toContinuousLinearMap
+  change HasFDerivAt
+    (fun w : LinearMap.ker (fderiv ℝ f a).toLinearMap => T (y, w))
+    (coareaVertical f a) z
+  exact T.hasFDerivAt.comp z ((hasFDerivAt_const y z).prodMk (hasFDerivAt_id z))
+
+private def regularCoareaFiberJacobian
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    (p : WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)) : ℝ :=
+  ((fderiv ℝ (regularCoareaChartInverse hf a ha) p).comp
+    (coareaVertical f a)).toLinearMap.normDet
+
+private theorem measurable_regularCoareaFiberJacobian
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a)) :
+    Measurable (regularCoareaFiberJacobian hf a ha) := by
+  apply ContinuousLinearMap.continuous_normDet.measurable.comp
+  exact (ContinuousLinearMap.compL ℝ
+      (LinearMap.ker (fderiv ℝ f a).toLinearMap)
+      (WithLp 2 (F × LinearMap.ker (fderiv ℝ f a).toLinearMap)) E).continuous₂.measurable.comp
+    ((measurable_fderiv ℝ (regularCoareaChartInverse hf a ha)).prodMk measurable_const)
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem regularCoareaFiberJacobian_mul_chartJacobian
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {x : E} (hx : x ∈ regularCoareaChartSource hf a ha) :
+    regularCoareaFiberJacobian hf a ha (coareaCoordinatesAt f a x) *
+        (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet =
+      (fderiv ℝ f x).toLinearMap.adjoint.normDet := by
+  let e := regularCoareaChart hf a ha
+  have hxtarget : coareaCoordinatesAt f a x ∈ e.target := by
+    rw [← regularCoareaChart_apply hf a ha]
+    exact e.map_source hx.1
+  have hsymm : e.symm (coareaCoordinatesAt f a x) = x := by
+    rw [← regularCoareaChart_apply hf a ha]
+    exact e.left_inv hx.1
+  have hsymm' : (regularCoareaChart hf a ha).symm (coareaCoordinatesAt f a x) = x :=
+    hsymm
+  have hderiv := hasFDerivAt_regularCoareaChartInverse hf a ha hxtarget (by
+    rw [hsymm]
+    exact hx.2)
+  have hfd : fderiv ℝ (regularCoareaChartInverse hf a ha)
+      (coareaCoordinatesAt f a x) =
+        (coareaCoordinatesEquivAtPoint f a x ha hx.2).symm := by
+    simpa only [hsymm'] using hderiv.fderiv
+  rw [regularCoareaFiberJacobian, hfd]
+  apply normDet_comp_vertical_mul_normDet
+    (coareaCoordinatesFDerivAt f a x).toLinearMap
+  · have hinj : Function.Injective (coareaCoordinatesFDerivAt f a x) :=
+      LinearMap.normDet_ne_zero_tfae
+        (coareaCoordinatesFDerivAt f a x).toLinearMap |>.out 0 4 |>.mp hx.2
+    have hdim := (coareaCoordinatesEquivAt f a ha).toLinearEquiv.finrank_eq
+    exact ⟨hinj,
+      (LinearMap.injective_iff_surjective_of_finrank_eq_finrank hdim).mp hinj⟩
+  · intro v
+    rfl
+
+private theorem regular_coarea_chart_formula_weighted
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {t : Set E} (ht : MeasurableSet t)
+    (htU : t ⊆ regularCoareaChartSource hf a ha)
+    (g : E → ℝ≥0∞) (hg : Measurable g) :
+    Measurable (fun y : F => ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ (LinearMap.ker (fderiv ℝ f a).toLinearMap)]) ∧
+    ∫⁻ y : F, ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ (LinearMap.ker (fderiv ℝ f a).toLinearMap)] =
+        ∫⁻ x in t, g x * ENNReal.ofReal ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+          ∂μHE[Module.finrank ℝ E] := by
+  classical
+  let K := LinearMap.ker (fderiv ℝ f a).toLinearMap
+  let W := WithLp 2 (F × K)
+  let e := regularCoareaChart hf a ha
+  let H := regularCoareaChartInverse hf a ha
+  let q : Set (F × K) :=
+    (fun p : F × K => WithLp.toLp 2 p) ⁻¹' (e '' t)
+  let w : W → ℝ≥0∞ := fun p =>
+    g (H p) * ENNReal.ofReal (regularCoareaFiberJacobian hf a ha p)
+  have ht_source : t ⊆ e.source := fun x hx => (htU hx).1
+  have heimage : MeasurableSet (e '' t) :=
+    ht.image_of_continuousOn_injOn (e.continuousOn.mono ht_source)
+      (e.injOn.mono ht_source)
+  have hq : MeasurableSet q :=
+    heimage.preimage (WithLp.prod_continuous_toLp 2 F K).measurable
+  have hH : Measurable H := measurable_regularCoareaChartInverse hf a ha
+  have hw : Measurable w := by
+    exact (hg.comp hH).mul
+      ((measurable_regularCoareaFiberJacobian hf a ha).ennreal_ofReal)
+  have hfiber : ∀ y : F,
+      ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ K] =
+        ∫⁻ z in Prod.mk y ⁻¹' q, w (WithLp.toLp 2 (y, z))
+          ∂μHE[Module.finrank ℝ K] := by
+    intro y
+    let r : Set K := Prod.mk y ⁻¹' q
+    let φ : K → E := regularCoareaFiberParam hf a ha y
+    have hr : MeasurableSet r := hq.preimage measurable_prodMk_left
+    have hr_target : ∀ z ∈ r, WithLp.toLp 2 (y, z) ∈ e.target := by
+      intro z hz
+      have hzimage : WithLp.toLp 2 (y, z) ∈ e '' t := hz
+      obtain ⟨x, hxt, hxz⟩ := hzimage
+      exact hxz ▸ e.map_source (ht_source hxt)
+    have hr_reg : ∀ z ∈ r,
+        (coareaCoordinatesFDerivAt f a
+          (e.symm (WithLp.toLp 2 (y, z)))).toLinearMap.normDet ≠ 0 := by
+      intro z hz
+      have hzimage : WithLp.toLp 2 (y, z) ∈ e '' t := hz
+      obtain ⟨x, hxt, hxz⟩ := hzimage
+      have hxeq : e.symm (WithLp.toLp 2 (y, z)) = x := by
+        rw [← hxz]
+        exact e.left_inv (ht_source hxt)
+      rw [hxeq]
+      exact (htU hxt).2
+    have hφderiv : ∀ z ∈ r, HasFDerivAt φ (fderiv ℝ φ z) z := by
+      intro z hz
+      have h := hasFDerivAt_regularCoareaFiberParam hf a ha y
+        (hr_target z hz) (hr_reg z hz)
+      exact h.congr_fderiv h.fderiv.symm
+    have hφinj : InjOn φ r := by
+      intro z hz z' hz' hzz'
+      have hHz : H (WithLp.toLp 2 (y, z)) = e.symm (WithLp.toLp 2 (y, z)) := by
+        dsimp only [H, e]
+        exact regularCoareaChartInverse_eq_symm hf a ha (hr_target z hz)
+      have hHz' : H (WithLp.toLp 2 (y, z')) = e.symm (WithLp.toLp 2 (y, z')) := by
+        dsimp only [H, e]
+        exact regularCoareaChartInverse_eq_symm hf a ha (hr_target z' hz')
+      have hzright := e.right_inv (hr_target z hz)
+      have hz'right := e.right_inv (hr_target z' hz')
+      have hp : WithLp.toLp 2 (y, z) = WithLp.toLp 2 (y, z') := by
+        change H (WithLp.toLp 2 (y, z)) = H (WithLp.toLp 2 (y, z')) at hzz'
+        rw [hHz, hHz'] at hzz'
+        rw [← hzright, ← hz'right]
+        exact congrArg e hzz'
+      exact congrArg WithLp.snd hp
+    have hφimage : φ '' r = t ∩ f ⁻¹' {y} := by
+      ext x
+      constructor
+      · rintro ⟨z, hz, rfl⟩
+        have hzimage : WithLp.toLp 2 (y, z) ∈ e '' t := hz
+        obtain ⟨u, hut, huz⟩ := hzimage
+        have hu_source := ht_source hut
+        have hHu : H (WithLp.toLp 2 (y, z)) = u := by
+          dsimp only [H, e]
+          rw [← huz, regularCoareaChartInverse_eq_symm hf a ha
+            ((regularCoareaChart hf a ha).map_source hu_source)]
+          exact e.left_inv hu_source
+        have hfy : f u = y := by
+          have := congrArg WithLp.fst huz
+          simpa [e, regularCoareaChart_apply, coareaCoordinatesAt] using this
+        have hφu : φ z = u := by
+          simpa only [φ, regularCoareaFiberParam] using hHu
+        refine ⟨?_, ?_⟩
+        · rw [hφu]
+          exact hut
+        · change f (φ z) = y
+          rw [hφu]
+          exact hfy
+      · rintro ⟨hxt, hfy⟩
+        let z : K := (e x).snd
+        have hxe : e x = WithLp.toLp 2 (y, z) := by
+          apply (WithLp.equiv 2 (F × K)).injective
+          apply Prod.ext
+          · simpa [e, regularCoareaChart_apply, coareaCoordinatesAt] using hfy
+          · rfl
+        have hzq : z ∈ r := by
+          change WithLp.toLp 2 (y, z) ∈ e '' t
+          rw [← hxe]
+          exact mem_image_of_mem e hxt
+        refine ⟨z, hzq, ?_⟩
+        change H (WithLp.toLp 2 (y, z)) = x
+        dsimp only [H, e]
+        rw [← hxe, regularCoareaChartInverse_eq_symm hf a ha
+          ((regularCoareaChart hf a ha).map_source (ht_source hxt))]
+        exact (regularCoareaChart hf a ha).left_inv (ht_source hxt)
+    have harea := injective_area_formula_image_weighted (f := φ)
+      (f' := fun z => fderiv ℝ φ z) g hr hφderiv hφinj
+    rw [hφimage] at harea
+    rw [harea]
+    apply setLIntegral_congr_fun hr
+    intro z hz
+    have hp := hr_target z hz
+    have hx := hr_reg z hz
+    have hparam := hasFDerivAt_regularCoareaFiberParam hf a ha y hp hx
+    have hinverse := hasFDerivAt_regularCoareaChartInverse hf a ha hp hx
+    change ENNReal.ofReal (jacobian φ z) * g (φ z) =
+      w (WithLp.toLp 2 (y, z))
+    rw [jacobian_of_hasFDerivAt hparam]
+    dsimp only [w, H, φ, regularCoareaFiberParam]
+    unfold regularCoareaFiberJacobian
+    change ENNReal.ofReal _ *
+        g (regularCoareaChartInverse hf a ha (WithLp.toLp 2 (y, z))) =
+      g (regularCoareaChartInverse hf a ha (WithLp.toLp 2 (y, z))) * ENNReal.ofReal
+        ((fderiv ℝ (regularCoareaChartInverse hf a ha) (WithLp.toLp 2 (y, z))).comp
+          (coareaVertical f a)).toLinearMap.normDet
+    rw [hinverse.fderiv]
+    exact mul_comm _ _
+  have hfubini := linear_coarea_formula_prod_hmeasure_weighted
+    (E := F) (F := K) q hq (g := fun p : F × K => w (WithLp.toLp 2 p))
+      (hw.comp (WithLp.prod_continuous_toLp 2 F K).measurable)
+  have houter :
+      ∫⁻ y : F, ∫⁻ x in t ∩ f ⁻¹' {y}, g x ∂μHE[Module.finrank ℝ K] =
+        ∫⁻ p in q, w (WithLp.toLp 2 p) := by
+    calc
+      ∫⁻ y : F, ∫⁻ x in t ∩ f ⁻¹' {y}, g x ∂μHE[Module.finrank ℝ K] =
+          ∫⁻ y : F, ∫⁻ z in Prod.mk y ⁻¹' q, w (WithLp.toLp 2 (y, z))
+            ∂μHE[Module.finrank ℝ K] := lintegral_congr hfiber
+      _ = ∫⁻ p in q, w (WithLp.toLp 2 p) := hfubini
+  have hqimage : (fun p : F × K => WithLp.toLp 2 p) '' q = e '' t := by
+    exact Set.image_preimage_eq _ (MeasurableEquiv.toLp 2 (F × K)).surjective
+  have htransport :
+      ∫⁻ p in q, w (WithLp.toLp 2 p) = ∫⁻ p in e '' t, w p := by
+    have h := (WithLp.volume_preserving_toLp F K).setLIntegral_comp_emb
+      (MeasurableEquiv.toLp 2 (F × K)).measurableEmbedding w q
+    rw [hqimage] at h
+    exact h
+  have hchart := injective_area_formula_image_weighted
+    (f := coareaCoordinatesAt f a)
+    (f' := coareaCoordinatesFDerivAt f a) w ht
+    (fun x _ => hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a x)
+    ((regularCoareaChart hf a ha).injOn.mono ht_source)
+  have hdim : Module.finrank ℝ E = Module.finrank ℝ W :=
+    (coareaCoordinatesEquivAt f a ha).toLinearEquiv.finrank_eq
+  have hchart' :
+      ∫⁻ p in e '' t, w p =
+        ∫⁻ x in t, ENNReal.ofReal (jacobian (coareaCoordinatesAt f a) x) *
+          w (coareaCoordinatesAt f a x) ∂μHE[Module.finrank ℝ E] := by
+    rw [← InnerProductSpace.euclideanHausdorffMeasure_eq_volume (V := W), ← hdim]
+    change
+      ∫⁻ p in coareaCoordinatesAt f a '' t, w p ∂μHE[Module.finrank ℝ E] = _
+    exact hchart
+  have hsource :
+      ∫⁻ x in t, ENNReal.ofReal (jacobian (coareaCoordinatesAt f a) x) *
+          w (coareaCoordinatesAt f a x) ∂μHE[Module.finrank ℝ E] =
+        ∫⁻ x in t, g x * ENNReal.ofReal
+          ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+            ∂μHE[Module.finrank ℝ E] := by
+    apply setLIntegral_congr_fun ht
+    intro x hxt
+    have hxU := htU hxt
+    have hxsource := hxU.1
+    have hHx : H (coareaCoordinatesAt f a x) = x := by
+      dsimp only [H]
+      rw [← regularCoareaChart_apply hf a ha,
+        regularCoareaChartInverse_eq_symm hf a ha
+          ((regularCoareaChart hf a ha).map_source hxsource)]
+      exact (regularCoareaChart hf a ha).left_inv hxsource
+    change ENNReal.ofReal (jacobian (coareaCoordinatesAt f a) x) *
+        w (coareaCoordinatesAt f a x) =
+      g x * ENNReal.ofReal ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+    rw [jacobian_of_hasFDerivAt
+      (hasFDerivAt_coareaCoordinatesAt (hf.differentiable one_ne_zero) a x)]
+    change ENNReal.ofReal _ *
+        (g (H (coareaCoordinatesAt f a x)) * ENNReal.ofReal _) = _
+    rw [hHx]
+    calc
+      ENNReal.ofReal (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet *
+          (g x * ENNReal.ofReal
+            (regularCoareaFiberJacobian hf a ha (coareaCoordinatesAt f a x))) =
+        g x *
+          (ENNReal.ofReal
+              (regularCoareaFiberJacobian hf a ha (coareaCoordinatesAt f a x)) *
+            ENNReal.ofReal (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet) := by
+              ac_rfl
+      _ =
+        g x * ENNReal.ofReal
+          (regularCoareaFiberJacobian hf a ha (coareaCoordinatesAt f a x) *
+            (coareaCoordinatesFDerivAt f a x).toLinearMap.normDet) := by
+              have hfiber_nonneg : 0 ≤ regularCoareaFiberJacobian hf a ha
+                  (coareaCoordinatesAt f a x) := by
+                exact LinearMap.normDet_nonneg _
+              rw [ENNReal.ofReal_mul hfiber_nonneg]
+      _ = g x * ENNReal.ofReal ((fderiv ℝ f x).toLinearMap.adjoint.normDet) := by
+        rw [regularCoareaFiberJacobian_mul_chartJacobian hf a ha hxU]
+  have hproduct : Measurable (q.indicator (fun p : F × K => w (WithLp.toLp 2 p))) :=
+    (hw.comp (WithLp.prod_continuous_toLp 2 F K).measurable).indicator hq
+  have hsection : Measurable (fun y : F =>
+      ∫⁻ z in Prod.mk y ⁻¹' q, w (WithLp.toLp 2 (y, z))
+        ∂μHE[Module.finrank ℝ K]) := by
+    have hmeas := hproduct.lintegral_prod_right'
+      (ν := (μHE[Module.finrank ℝ K] : Measure K))
+    convert hmeas using 1
+    funext y
+    rw [← MeasureTheory.lintegral_indicator (hq.preimage measurable_prodMk_left)]
+    rfl
+  refine ⟨?_, houter.trans (htransport.trans (hchart'.trans hsource))⟩
+  rw [show (fun y : F => ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ K]) =
+    (fun y : F => ∫⁻ z in Prod.mk y ⁻¹' q, w (WithLp.toLp 2 (y, z))
+      ∂μHE[Module.finrank ℝ K]) from funext hfiber]
+  exact hsection
+
+omit [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F] in
+private theorem surjective_fderiv_of_mem_regularCoareaChartSource
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {x : E} (hx : x ∈ regularCoareaChartSource hf a ha) :
+    Function.Surjective (fderiv ℝ f x) := by
+  have hinj : Function.Injective (coareaCoordinatesFDerivAt f a x) :=
+    LinearMap.normDet_ne_zero_tfae
+      (coareaCoordinatesFDerivAt f a x).toLinearMap |>.out 0 4 |>.mp hx.2
+  have hdim := (coareaCoordinatesEquivAt f a ha).toLinearEquiv.finrank_eq
+  have hbij : Function.Bijective (coareaCoordinatesFDerivAt f a x) :=
+    ⟨hinj, (LinearMap.injective_iff_surjective_of_finrank_eq_finrank hdim).mp hinj⟩
+  intro y
+  obtain ⟨v, hv⟩ := hbij.2 (WithLp.toLp 2 (y, 0))
+  refine ⟨v, ?_⟩
+  have := congrArg WithLp.fst hv
+  simpa [coareaCoordinatesFDerivAt] using this
+
+omit [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+  [MeasurableSpace F] [BorelSpace F] in
+private theorem finrank_ker_eq_sub_of_surjective
+    (L : E →ₗ[ℝ] F) (hL : Function.Surjective L) :
+    Module.finrank ℝ (LinearMap.ker L) =
+      Module.finrank ℝ E - Module.finrank ℝ F := by
+  have hrange : Module.finrank ℝ (LinearMap.range L) = Module.finrank ℝ F := by
+    rw [LinearMap.range_eq_top.mpr hL]
+    simp
+  have hrank := L.finrank_range_add_finrank_ker
+  omega
+
+private theorem regular_coarea_chart_formula_weighted_dim
+    {f : E → F} (hf : ContDiff ℝ 1 f) (a : E)
+    (ha : Function.Surjective (fderiv ℝ f a))
+    {t : Set E} (ht : MeasurableSet t)
+    (htU : t ⊆ regularCoareaChartSource hf a ha)
+    (g : E → ℝ≥0∞) (hg : Measurable g) :
+    Measurable (fun y : F => ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) ∧
+    ∫⁻ y : F, ∫⁻ x in t ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+        ∫⁻ x in t, g x * ENNReal.ofReal ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+          ∂μHE[Module.finrank ℝ E] := by
+  have hdim := finrank_ker_eq_sub_of_surjective (fderiv ℝ f a).toLinearMap ha
+  simpa only [hdim] using regular_coarea_chart_formula_weighted hf a ha ht htU g hg
+
+private theorem regular_coarea_formula_weighted
+    {f : E → F} (hf : ContDiff ℝ 1 f)
+    {s : Set E} (hs : MeasurableSet s)
+    (hsreg : ∀ x ∈ s, Function.Surjective (fderiv ℝ f x))
+    (g : E → ℝ≥0∞) (hg : Measurable g) :
+    Measurable (fun y : F => ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+      ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) ∧
+    ∫⁻ y : F, ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+        ∫⁻ x in s, g x * ENNReal.ofReal ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+          ∂μHE[Module.finrank ℝ E] := by
+  classical
+  rcases eq_empty_or_nonempty s with rfl | hsne
+  · simp
+  let R := {x : E // Function.Surjective (fderiv ℝ f x)}
+  let _ : Nonempty R := ⟨⟨hsne.choose, hsreg hsne.choose hsne.choose_spec⟩⟩
+  let U : R → Set E := fun x => regularCoareaChartSource hf x x.2
+  have hUopen : ∀ x, IsOpen (U x) := fun x => isOpen_regularCoareaChartSource hf x x.2
+  have hsU : s ⊆ ⋃ x, U x := by
+    intro x hxs
+    exact mem_iUnion.2 ⟨⟨x, hsreg x hxs⟩, self_mem_regularCoareaChartSource hf x (hsreg x hxs)⟩
+  obtain ⟨a, ha⟩ := (HereditarilyLindelofSpace.isLindelof s).indexed_countable_subcover
+    U hUopen hsU
+  let v : ℕ → Set E := fun n => s ∩ U (a n)
+  let t : ℕ → Set E := disjointed v
+  have hvmeas : ∀ n, MeasurableSet (v n) := fun n => hs.inter (hUopen (a n)).measurableSet
+  have htmeas : ∀ n, MeasurableSet (t n) := fun n => MeasurableSet.disjointed hvmeas n
+  have htdisj : Pairwise fun i j => Disjoint (t i) (t j) := disjoint_disjointed v
+  have htU : ∀ n, t n ⊆ U (a n) := by
+    intro n
+    exact (disjointed_subset v n).trans inter_subset_right
+  have htcover : ⋃ n, t n = s := by
+    rw [iUnion_disjointed]
+    apply Subset.antisymm
+    · exact iUnion_subset fun n => inter_subset_left
+    · intro x hxs
+      obtain ⟨n, hxn⟩ := mem_iUnion.1 (ha hxs)
+      exact mem_iUnion.2 ⟨n, hxs, hxn⟩
+  have hlocal : ∀ n,
+      Measurable (fun y : F => ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) ∧
+      ∫⁻ y : F, ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+            ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+          ∫⁻ x in t n, g x * ENNReal.ofReal
+            ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+              ∂μHE[Module.finrank ℝ E] := by
+    intro n
+    exact regular_coarea_chart_formula_weighted_dim hf (a n) (a n).2
+      (htmeas n) (htU n) g hg
+  have hpreimage_meas : ∀ y : F, MeasurableSet (f ⁻¹' {y}) := fun y =>
+    (MeasurableSet.singleton y).preimage hf.continuous.measurable
+  have hfiber_union : ∀ y : F,
+      ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+        ∑' n, ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+          ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] := by
+    intro y
+    rw [← htcover, iUnion_inter]
+    exact MeasureTheory.lintegral_iUnion
+      (fun n => (htmeas n).inter (hpreimage_meas y))
+      (fun i j hij => (htdisj hij).mono inter_subset_left inter_subset_left) g
+  refine ⟨?_, ?_⟩
+  · rw [show (fun y : F => ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) =
+      (fun y : F => ∑' n, ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+        ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F]) from funext hfiber_union]
+    exact Measurable.tsum fun n => (hlocal n).1
+  · calc
+      ∫⁻ y : F, ∫⁻ x in s ∩ f ⁻¹' {y}, g x
+            ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] =
+          ∫⁻ y : F, ∑' n, ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+            ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] :=
+        lintegral_congr hfiber_union
+      _ = ∑' n, ∫⁻ y : F, ∫⁻ x in t n ∩ f ⁻¹' {y}, g x
+            ∂μHE[Module.finrank ℝ E - Module.finrank ℝ F] :=
+        MeasureTheory.lintegral_tsum fun n => (hlocal n).1.aemeasurable
+      _ = ∑' n, ∫⁻ x in t n, g x * ENNReal.ofReal
+            ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+              ∂μHE[Module.finrank ℝ E] := tsum_congr fun n => (hlocal n).2
+      _ = ∫⁻ x in ⋃ n, t n, g x * ENNReal.ofReal
+            ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+              ∂μHE[Module.finrank ℝ E] :=
+        (MeasureTheory.lintegral_iUnion htmeas htdisj _).symm
+      _ = ∫⁻ x in s, g x * ENNReal.ofReal
+            ((fderiv ℝ f x).toLinearMap.adjoint.normDet)
+              ∂μHE[Module.finrank ℝ E] := by rw [htcover]
+
+end LocalCoordinates
 
 end Area
