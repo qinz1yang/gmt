@@ -1,5 +1,6 @@
 import GMT.Linear.NormDet
 import GMT.Measure.Lusin
+import GMT.Analysis.Lipschitz
 import GMT.Area.Jacobian
 import GMT.Area.Formula
 import GMT.Area.Coarea

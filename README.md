@@ -39,7 +39,8 @@ completed here.
 The reusable Jacobian and linear/product-measure interfaces are recorded in
 [`AREA_ACCEPTANCE.md`](AREA_ACCEPTANCE.md). The completed declarations include the scalar
 Lipschitz extension theorem, the Mathlib Rademacher interface, the generic Lusin closed-set
-continuity theorem used by the C1 approximation proof, the Hausdorff image estimate,
+continuity theorem and closed differentiability set with continuous derivative used by the C1
+approximation proof, the Hausdorff image estimate,
 the intrinsic rectangular Jacobian, the linear area formula, square-dimensional injective and
 general non-injective weighted area formulas, fiber multiplicity, the finite and countable
 injective-partition engines, and the product-volume projection coarea identities (including
