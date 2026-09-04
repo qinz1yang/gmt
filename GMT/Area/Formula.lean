@@ -1178,16 +1178,18 @@ theorem monotone_area_formula_real_with_multiplicity
       MeasureTheory.lintegral_image_eq_lintegral_deriv_mul_of_monotoneOn hs hf' hf g
 
 theorem area_formula_of_finite_injective_partition_image_weighted
-    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
-    [MeasurableSpace E] [BorelSpace E]
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (n : ℕ)
-    (t : Fin n → Set E) (g : E → ℝ≥0∞)
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E} (n : ℕ)
+    (t : Fin n → Set E) (g : F → ℝ≥0∞)
     (hpart : (⋃ i, t i) = s) (ht : ∀ i, MeasurableSet (t i))
     (hdisj : ∀ ⦃i j : Fin n⦄, i ≠ j → Disjoint (t i) (t j))
     (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : ∀ i : Fin n, InjOn f (t i))
     (hg : Measurable g) :
-    ∫⁻ y, multiplicity f s y * g y =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    ∫⁻ y : F, multiplicity f s y * g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
   classical
   have hmult : ∀ y, multiplicity f s y = ∑ i, multiplicity f (t i) y := by
     intro y
@@ -1212,10 +1214,12 @@ theorem area_formula_of_finite_injective_partition_image_weighted
     exact mem_iUnion.2 ⟨i, hx⟩
   have himage : ∀ i : Fin n, MeasurableSet (f '' t i) := by
     intro i
-    exact MeasureTheory.measurable_image_of_fderivWithin (ht i)
-      (fun x hx => (hf' x (hsubset i x hx)).hasFDerivWithinAt) (hfinj i)
-  have hpiece : ∀ i : Fin n, ∫⁻ y, multiplicity f (t i) y * g y =
-      ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    exact (ht i).image_of_continuousOn_injOn
+      (fun x hx => (hf' x (hsubset i x hx)).continuousAt.continuousWithinAt) (hfinj i)
+  have hpiece : ∀ i : Fin n,
+      ∫⁻ y : F, multiplicity f (t i) y * g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
     intro i
     have hpoint : ∀ y, multiplicity f (t i) y * g y = (f '' t i).indicator g y := by
       intro y
@@ -1225,14 +1229,15 @@ theorem area_formula_of_finite_injective_partition_image_weighted
       · rw [multiplicity_eq_zero_of_not_mem_image hy]
         simp [Set.indicator, hy]
     calc
-      ∫⁻ y, multiplicity f (t i) y * g y = ∫⁻ y, (f '' t i).indicator g y :=
+      ∫⁻ y : F, multiplicity f (t i) y * g y ∂μHE[Module.finrank ℝ E] =
+          ∫⁻ y : F, (f '' t i).indicator g y ∂μHE[Module.finrank ℝ E] :=
         lintegral_congr (fun y => hpoint y)
-      _ = ∫⁻ y in f '' t i, g y := MeasureTheory.lintegral_indicator (himage i) g
-      _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) :=
-        by
-          simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
-            injective_area_formula_image_weighted g (ht i)
-              (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
+      _ = ∫⁻ y : F in f '' t i, g y ∂μHE[Module.finrank ℝ E] :=
+        MeasureTheory.lintegral_indicator (himage i) g
+      _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+          ∂μHE[Module.finrank ℝ E] :=
+        injective_area_formula_image_weighted g (ht i)
+          (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
   have hmeas : ∀ i : Fin n, Measurable (fun y => multiplicity f (t i) y * g y) := by
     intro i
     have hpoint : ∀ y, multiplicity f (t i) y * g y = (f '' t i).indicator g y := by
@@ -1246,21 +1251,27 @@ theorem area_formula_of_finite_injective_partition_image_weighted
       funext y; exact hpoint y]
     exact hg.indicator (himage i)
   calc
-    ∫⁻ y, multiplicity f s y * g y =
-        ∫⁻ y, (∑ i, multiplicity f (t i) y) * g y :=
+    ∫⁻ y : F, multiplicity f s y * g y ∂μHE[Module.finrank ℝ E] =
+        ∫⁻ y : F, (∑ i, multiplicity f (t i) y) * g y
+          ∂μHE[Module.finrank ℝ E] :=
       lintegral_congr (fun y => by rw [hmult y])
-    _ = ∫⁻ y, ∑ i, multiplicity f (t i) y * g y := by
+    _ = ∫⁻ y : F, ∑ i, multiplicity f (t i) y * g y
+        ∂μHE[Module.finrank ℝ E] := by
       apply lintegral_congr
       intro y
       rw [Finset.sum_mul]
-    _ = ∑ i, ∫⁻ y, multiplicity f (t i) y * g y := by
-      simpa using MeasureTheory.lintegral_finsetSum (μ := (volume : Measure E))
+    _ = ∑ i, ∫⁻ y : F, multiplicity f (t i) y * g y
+        ∂μHE[Module.finrank ℝ E] := by
+      simpa using MeasureTheory.lintegral_finsetSum
+        (μ := (μHE[Module.finrank ℝ E] : Measure F))
         (Finset.univ : Finset (Fin n)) (fun i _ => hmeas i)
-    _ = ∑ i, ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    _ = ∑ i, ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply Finset.sum_congr rfl
       intro i hi
       exact hpiece i
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
       rw [← hpart, Measure.restrict_iUnion hdisj ht, MeasureTheory.lintegral_sum_measure]
       simp [tsum_fintype]
 
@@ -1395,15 +1406,17 @@ private lemma countable_multiplicity
     simp [u], hunion, htsum]
 
 theorem area_formula_of_countable_injective_partition_image_weighted
-    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
-    [MeasurableSpace E] [BorelSpace E]
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (t : ℕ → Set E)
-    (g : E → ℝ≥0∞) (hpart : (⋃ i, t i) = s) (ht : ∀ i, MeasurableSet (t i))
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
+    [MeasurableSpace E] [BorelSpace E] [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E} (t : ℕ → Set E)
+    (g : F → ℝ≥0∞) (hpart : (⋃ i, t i) = s) (ht : ∀ i, MeasurableSet (t i))
     (hdisj : ∀ ⦃i j : ℕ⦄, i ≠ j → Disjoint (t i) (t j))
     (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : ∀ i : ℕ, InjOn f (t i))
     (hg : Measurable g) :
-    ∫⁻ y, multiplicity f s y * g y =
-      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    ∫⁻ y : F, multiplicity f s y * g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
   classical
   have hsubset : ∀ i x, x ∈ t i → x ∈ s := by
     intro i x hx
@@ -1411,10 +1424,12 @@ theorem area_formula_of_countable_injective_partition_image_weighted
     exact mem_iUnion.2 ⟨i, hx⟩
   have himage : ∀ i : ℕ, MeasurableSet (f '' t i) := by
     intro i
-    exact MeasureTheory.measurable_image_of_fderivWithin (ht i)
-      (fun x hx => (hf' x (hsubset i x hx)).hasFDerivWithinAt) (hfinj i)
-  have hpiece : ∀ i : ℕ, ∫⁻ y, multiplicity f (t i) y * g y =
-      ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    exact (ht i).image_of_continuousOn_injOn
+      (fun x hx => (hf' x (hsubset i x hx)).continuousAt.continuousWithinAt) (hfinj i)
+  have hpiece : ∀ i : ℕ,
+      ∫⁻ y : F, multiplicity f (t i) y * g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
     intro i
     have hpoint : ∀ y, multiplicity f (t i) y * g y = (f '' t i).indicator g y := by
       intro y
@@ -1424,16 +1439,17 @@ theorem area_formula_of_countable_injective_partition_image_weighted
       · rw [multiplicity_eq_zero_of_not_mem_image hy]
         simp [Set.indicator, hy]
     calc
-      ∫⁻ y, multiplicity f (t i) y * g y = ∫⁻ y, (f '' t i).indicator g y :=
+      ∫⁻ y : F, multiplicity f (t i) y * g y ∂μHE[Module.finrank ℝ E] =
+          ∫⁻ y : F, (f '' t i).indicator g y ∂μHE[Module.finrank ℝ E] :=
         lintegral_congr (fun y => hpoint y)
-      _ = ∫⁻ y in f '' t i, g y := MeasureTheory.lintegral_indicator (himage i) g
-      _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) :=
-        by
-          simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
-            injective_area_formula_image_weighted g (ht i)
-              (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
+      _ = ∫⁻ y : F in f '' t i, g y ∂μHE[Module.finrank ℝ E] :=
+        MeasureTheory.lintegral_indicator (himage i) g
+      _ = ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+          ∂μHE[Module.finrank ℝ E] :=
+        injective_area_formula_image_weighted g (ht i)
+          (fun x hx => hf' x (hsubset i x hx)) (hfinj i)
   have hmeas : ∀ i : ℕ, AEMeasurable (fun y => multiplicity f (t i) y * g y)
-      (volume : Measure E) := by
+      (μHE[Module.finrank ℝ E] : Measure F) := by
     intro i
     have hpoint : ∀ y, multiplicity f (t i) y * g y = (f '' t i).indicator g y := by
       intro y
@@ -1450,20 +1466,25 @@ theorem area_formula_of_countable_injective_partition_image_weighted
     rw [← hpart]
     exact countable_multiplicity hdisj hfinj y
   calc
-    ∫⁻ y, multiplicity f s y * g y =
-        ∫⁻ y, (∑' i, multiplicity f (t i) y) * g y :=
+    ∫⁻ y : F, multiplicity f s y * g y ∂μHE[Module.finrank ℝ E] =
+        ∫⁻ y : F, (∑' i, multiplicity f (t i) y) * g y
+          ∂μHE[Module.finrank ℝ E] :=
       lintegral_congr (fun y => by rw [hmult y])
-    _ = ∫⁻ y, ∑' i, multiplicity f (t i) y * g y := by
+    _ = ∫⁻ y : F, ∑' i, multiplicity f (t i) y * g y
+        ∂μHE[Module.finrank ℝ E] := by
       apply lintegral_congr
       intro y
       rw [ENNReal.tsum_mul_right]
-    _ = ∑' i, ∫⁻ y, multiplicity f (t i) y * g y :=
+    _ = ∑' i, ∫⁻ y : F, multiplicity f (t i) y * g y
+        ∂μHE[Module.finrank ℝ E] :=
       MeasureTheory.lintegral_tsum hmeas
-    _ = ∑' i, ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    _ = ∑' i, ∫⁻ x in t i, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply tsum_congr
       intro i
       exact hpiece i
-    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x) := by
+    _ = ∫⁻ x in s, ENNReal.ofReal (jacobian f x) * g (f x)
+        ∂μHE[Module.finrank ℝ E] := by
       rw [← hpart, MeasureTheory.lintegral_iUnion ht hdisj]
 
 private theorem countable_weightedMultiplicity
@@ -1499,28 +1520,32 @@ private theorem countable_weightedMultiplicity
     _ = ∑' i, weightedMultiplicity f (t i) g y := by rfl
 
 theorem area_formula_of_countable_injective_partition
-    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [MeasurableSpace E] [BorelSpace E]
-    {f : E → E} {f' : E → E →L[ℝ] E} {s : Set E} (t : ℕ → Set E)
+    {E F : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [MeasurableSpace E] [BorelSpace E]
+    [MeasurableSpace F] [BorelSpace F]
+    {f : E → F} {f' : E → E →L[ℝ] F} {s : Set E} (t : ℕ → Set E)
     (g : E → ℝ≥0∞) (hpart : (⋃ i, t i) = s) (ht : ∀ i, MeasurableSet (t i))
     (hdisj : ∀ ⦃i j : ℕ⦄, i ≠ j → Disjoint (t i) (t j))
     (hf' : ∀ x ∈ s, HasFDerivAt f (f' x) x) (hfinj : ∀ i : ℕ, InjOn f (t i))
     (hg : Measurable g) :
-    ∫⁻ y, weightedMultiplicity f s g y =
-      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    ∫⁻ y : F, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
   classical
   have hsubset : ∀ i x, x ∈ t i → x ∈ s := by
     intro i x hx
     rw [← hpart]
     exact mem_iUnion.2 ⟨i, hx⟩
-  have hpiece : ∀ i, ∫⁻ y, weightedMultiplicity f (t i) g y =
-      ∫⁻ x in t i, g x * ENNReal.ofReal (jacobian f x) := by
+  have hpiece : ∀ i,
+      ∫⁻ y : F, weightedMultiplicity f (t i) g y ∂μHE[Module.finrank ℝ E] =
+      ∫⁻ x in t i, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
     intro i
-    simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
-      injective_area_formula_weighted g (ht i)
-        (fun x hx => hf' x (hsubset i x hx)) (hfinj i) hg
+    exact injective_area_formula_weighted g (ht i)
+      (fun x hx => hf' x (hsubset i x hx)) (hfinj i) hg
   have hmeas : ∀ i, AEMeasurable (weightedMultiplicity f (t i) g)
-      (volume : Measure E) := by
+      (μHE[Module.finrank ℝ E] : Measure F) := by
     intro i
     obtain ⟨h, hh, hpoint, _⟩ :=
       exists_measurable_weightedMultiplicity_eq_indicator g (ht i)
@@ -1529,23 +1554,28 @@ theorem area_formula_of_countable_injective_partition
     rw [show weightedMultiplicity f (t i) g = (f '' t i).indicator h by
       funext y
       exact hpoint y]
-    exact (hh.indicator (MeasureTheory.measurable_image_of_fderivWithin (ht i)
-      (fun x hx => (hf' x (hsubset i x hx)).hasFDerivWithinAt) (hfinj i))).aemeasurable
+    exact (hh.indicator ((ht i).image_of_continuousOn_injOn
+      (fun x hx => (hf' x (hsubset i x hx)).continuousAt.continuousWithinAt)
+      (hfinj i))).aemeasurable
   have hmult : ∀ y, weightedMultiplicity f s g y =
       ∑' i, weightedMultiplicity f (t i) g y := by
     intro y
     rw [← hpart]
     exact countable_weightedMultiplicity g hdisj y
   calc
-    ∫⁻ y, weightedMultiplicity f s g y =
-        ∫⁻ y, ∑' i, weightedMultiplicity f (t i) g y := lintegral_congr hmult
-    _ = ∑' i, ∫⁻ y, weightedMultiplicity f (t i) g y :=
+    ∫⁻ y : F, weightedMultiplicity f s g y ∂μHE[Module.finrank ℝ E] =
+        ∫⁻ y : F, ∑' i, weightedMultiplicity f (t i) g y
+          ∂μHE[Module.finrank ℝ E] := lintegral_congr hmult
+    _ = ∑' i, ∫⁻ y : F, weightedMultiplicity f (t i) g y
+        ∂μHE[Module.finrank ℝ E] :=
       MeasureTheory.lintegral_tsum hmeas
-    _ = ∑' i, ∫⁻ x in t i, g x * ENNReal.ofReal (jacobian f x) := by
+    _ = ∑' i, ∫⁻ x in t i, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
       apply tsum_congr
       intro i
       exact hpiece i
-    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x) := by
+    _ = ∫⁻ x in s, g x * ENNReal.ofReal (jacobian f x)
+        ∂μHE[Module.finrank ℝ E] := by
       rw [← hpart, MeasureTheory.lintegral_iUnion ht hdisj]
 
 private def equiv_of_det_ne_zero
@@ -1675,8 +1705,9 @@ theorem area_formula_image_weighted
         exact mem_iUnion.2 ⟨n, ⟨hx, hxn⟩⟩
     have hformula : ∫⁻ y, multiplicity f r y * g y =
         ∫⁻ x in r, ENNReal.ofReal (jacobian f x) * g (f x) := by
-      exact area_formula_of_countable_injective_partition_image_weighted u g hu_part hu_meas hu_disj
-        (fun x _ => hfd x) hpiece_inj hg
+      simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+        area_formula_of_countable_injective_partition_image_weighted u g hu_part hu_meas hu_disj
+          (fun x _ => hfd x) hpiece_inj hg
     have hleft : ∫⁻ y, multiplicity f s y * g y = ∫⁻ y, multiplicity f r y * g y := by
       apply lintegral_congr_ae
       have hae : ∀ᵐ y : E ∂(volume : Measure E), y ∉ f '' c := by
@@ -1883,8 +1914,10 @@ theorem area_formula
         exact mem_iUnion.2 ⟨n, ⟨hx, hxn⟩⟩
     have hformula : ∫⁻ y, weightedMultiplicity f r g y =
         ∫⁻ x in r, g x * ENNReal.ofReal (jacobian f x) :=
-      area_formula_of_countable_injective_partition u g hu_part hu_meas hu_disj
-        (fun x _ => hfd x) hpiece_inj hg
+      by
+        simpa only [InnerProductSpace.euclideanHausdorffMeasure_eq_volume] using
+          area_formula_of_countable_injective_partition u g hu_part hu_meas hu_disj
+            (fun x _ => hfd x) hpiece_inj hg
     have hleft : ∫⁻ y, weightedMultiplicity f s g y =
         ∫⁻ y, weightedMultiplicity f r g y := by
       apply lintegral_congr_ae
