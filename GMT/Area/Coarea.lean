@@ -1,9 +1,13 @@
+import GMT.Analysis.Whitney
 import GMT.Area.Formula
 import GMT.Area.Submanifold
+import GMT.Measure.Density
 import Mathlib.Analysis.Calculus.InverseFunctionTheorem.ContDiff
 import Mathlib.Analysis.InnerProductSpace.ProdL2
+import Mathlib.MeasureTheory.Measure.Haar.Unique
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.MeasureTheory.Measure.Haar.InnerProductSpace
+import Mathlib.Order.Filter.AtTopBot.Basic
 import Mathlib.Topology.MetricSpace.HausdorffDimension
 
 noncomputable section
@@ -2271,6 +2275,348 @@ theorem coarea_formula
       ∫⁻ x in s, ENNReal.ofReal (coareaJacobian f x)
         ∂μHE[Module.finrank ℝ E] := by
   simpa using coarea_formula_weighted hf hEF hs (fun _ => (1 : ℝ≥0∞)) measurable_const
+
+open Function in
+private theorem lipschitz_coarea_inequality_aux_of_measurableSet
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : MeasurableSet s) :
+    AEMeasurable (fun y : F => μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y})) volume ∧
+      ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (s ∩ f ⁻¹' {y}) ≤
+        (K : ℝ≥0∞) ^ Module.finrank ℝ F * μHE[Module.finrank ℝ E] s := by
+  let ε : ℕ → ℝ≥0∞ := fun n => ((n + 1 : ℕ) : ℝ≥0∞)⁻¹
+  have hε : ∀ n, ε n ≠ 0 := by
+    intro n
+    simp [ε]
+  have happ : ∀ n, ∃ g : E → F, ∃ a : Set E, IsClosed a ∧
+      (Measure.addHaar : Measure E) aᶜ < ε n ∧ ContDiff ℝ 1 g ∧
+        EqOn g f a ∧ EqOn (fderiv ℝ g) (fderiv ℝ f) a := fun n =>
+    hf.exists_contDiff_eqOn_fderiv (hε n)
+  choose g a haclosed hacompl hg hgf hgf' using happ
+  let t : ℕ → Set E := disjointed a
+  let u : ℕ → Set E := fun n => s ∩ t n
+  let r : Set E := (⋃ n, a n)ᶜ
+  have htmeas : ∀ n, MeasurableSet (t n) := by
+    intro n
+    rw [show t n = disjointed a n from rfl, disjointed_eq_inter_compl]
+    exact (haclosed n).measurableSet.inter <|
+      MeasurableSet.iInter fun j =>
+        MeasurableSet.iInter fun _ => (haclosed j).measurableSet.compl
+  have humeas : ∀ n, MeasurableSet (u n) := fun n => hs.inter (htmeas n)
+  have hudisj : Pairwise (Disjoint on u) := by
+    exact pairwise_disjoint_mono (disjoint_disjointed a) fun n => inter_subset_right
+  have hrem_addHaar : (Measure.addHaar : Measure E) r = 0 := by
+    apply le_antisymm
+    · apply ge_of_tendsto'
+        (ENNReal.tendsto_inv_nat_nhds_zero.comp (Filter.tendsto_add_atTop_nat 1))
+      intro n
+      calc
+        (Measure.addHaar : Measure E) r ≤ (Measure.addHaar : Measure E) (a n)ᶜ := by
+          apply measure_mono
+          intro x hx hxa
+          exact hx (mem_iUnion.mpr ⟨n, hxa⟩)
+        _ ≤ ε n := (hacompl n).le
+    · exact bot_le
+  have hrem : μHE[Module.finrank ℝ E] r = 0 := by
+    rw [Measure.isAddLeftInvariant_eq_smul
+      (μHE[Module.finrank ℝ E] : Measure E) (Measure.addHaar : Measure E),
+      Measure.smul_apply, hrem_addHaar]
+    simp
+  have hremraw : μH[(Module.finrank ℝ E : ℝ)] (s ∩ r) = 0 := by
+    have hnormalized : μHE[Module.finrank ℝ E] (s ∩ r) = 0 :=
+      measure_mono_null inter_subset_right hrem
+    rw [Measure.euclideanHausdorffMeasure_apply_eq_smul] at hnormalized
+    exact (mul_eq_zero.mp hnormalized).resolve_left <| by
+      exact_mod_cast Measure.addHaarScalarFactor_volume_hausdorffMeasure_ne_zero
+        (Module.finrank ℝ E)
+  have hkpos : 0 < (Module.finrank ℝ E - Module.finrank ℝ F : ℕ) :=
+    Nat.sub_pos_of_lt hEF
+  have hdim : ((Module.finrank ℝ E - Module.finrank ℝ F : ℕ) : ℝ) +
+      Module.finrank ℝ F = Module.finrank ℝ E := by
+    exact_mod_cast Nat.sub_add_cancel hEF.le
+  obtain ⟨q, hqmeas, hqpoint, hqint⟩ :=
+    (hf.lipschitzOnWith (s := s ∩ r)).exists_measurable_hausdorffMeasure_fiber_majorant
+      (k := ((Module.finrank ℝ E - Module.finrank ℝ F : ℕ) : ℝ))
+      (by exact_mod_cast hkpos) (by simp [hdim, hremraw])
+  have hqintzero : ∫⁻ y : F, q y ∂μHE[Module.finrank ℝ F] = 0 := by
+    apply le_antisymm
+    · exact hqint.trans (by simp [hdim, hremraw])
+    · exact bot_le
+  have hqzero : (fun y : F => q y) =ᵐ[μHE[Module.finrank ℝ F]] 0 :=
+    (lintegral_eq_zero_iff hqmeas).mp hqintzero
+  have hremfiber : ∀ᵐ y : F ∂volume,
+      μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        ((s ∩ r) ∩ f ⁻¹' {y}) = 0 := by
+    rw [← InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    filter_upwards [hqzero] with y hy
+    rw [Measure.euclideanHausdorffMeasure_apply_eq_smul]
+    have hraw : μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        ((s ∩ r) ∩ f ⁻¹' {y}) = 0 := by
+      apply le_antisymm
+      · exact (hqpoint y).trans (by simpa only [Pi.zero_apply] using hy.le)
+      · exact bot_le
+    rw [hraw, mul_zero]
+  have hfgfiber : ∀ n y,
+      u n ∩ f ⁻¹' {y} = u n ∩ (g n) ⁻¹' {y} := by
+    intro n y
+    ext x
+    constructor
+    · intro hx
+      refine ⟨hx.1, ?_⟩
+      have heq := hgf n (disjointed_subset a n hx.1.2)
+      simpa [heq] using hx.2
+    · intro hx
+      refine ⟨hx.1, ?_⟩
+      have heq := hgf n (disjointed_subset a n hx.1.2)
+      simpa [heq] using hx.2
+  have hpiece_meas : ∀ n, AEMeasurable (fun y : F =>
+      μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (u n ∩ f ⁻¹' {y})) volume := by
+    intro n
+    have hm := aemeasurable_coarea_fiber_integral (hg n) hEF (humeas n)
+      (fun _ => (1 : ℝ≥0∞)) measurable_const
+    have hm' : AEMeasurable (fun y : F =>
+        μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ (g n) ⁻¹' {y})) volume := by
+      simpa using hm
+    exact hm'.congr (ae_of_all _ fun y => by
+      change μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ (g n) ⁻¹' {y}) =
+        μHE[Module.finrank ℝ E - Module.finrank ℝ F] (u n ∩ f ⁻¹' {y})
+      rw [← hfgfiber])
+  have hjac : ∀ n x, x ∈ u n →
+      ENNReal.ofReal (coareaJacobian (g n) x) ≤
+        (K : ℝ≥0∞) ^ Module.finrank ℝ F := by
+    intro n x hxu
+    have hderiv := hgf' n (disjointed_subset a n hxu.2)
+    have hdet := ContinuousLinearMap.normDet_le_norm_pow (fderiv ℝ (g n) x).adjoint
+    have hnorm : ‖fderiv ℝ (g n) x‖ ≤ K := by
+      rw [hderiv]
+      exact norm_fderiv_le_of_lipschitz ℝ hf
+    have hreal : coareaJacobian (g n) x ≤ (K : ℝ) ^ Module.finrank ℝ F := by
+      calc
+        coareaJacobian (g n) x ≤
+            ‖(fderiv ℝ (g n) x).adjoint‖ ^ Module.finrank ℝ F := hdet
+        _ = ‖fderiv ℝ (g n) x‖ ^ Module.finrank ℝ F := by
+          rw [LinearIsometryEquiv.norm_map]
+        _ ≤ (K : ℝ) ^ Module.finrank ℝ F :=
+          (pow_le_pow_left₀ (norm_nonneg _) hnorm) _
+    simpa using ENNReal.ofReal_le_ofReal hreal
+  have hpiece : ∀ n,
+      (∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ f ⁻¹' {y})) ≤
+        (K : ℝ≥0∞) ^ Module.finrank ℝ F * μHE[Module.finrank ℝ E] (u n) := by
+    intro n
+    calc
+      (∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ f ⁻¹' {y})) =
+          ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+            (u n ∩ (g n) ⁻¹' {y}) := by
+        apply lintegral_congr
+        intro y
+        rw [hfgfiber]
+      _ = ∫⁻ x in u n, ENNReal.ofReal (coareaJacobian (g n) x)
+          ∂μHE[Module.finrank ℝ E] := coarea_formula (hg n) hEF (humeas n)
+      _ ≤ ∫⁻ _x in u n, (K : ℝ≥0∞) ^ Module.finrank ℝ F
+            ∂μHE[Module.finrank ℝ E] := by
+        apply lintegral_mono_ae
+        filter_upwards [ae_restrict_mem (humeas n)] with x hx
+        exact hjac n x hx
+      _ = (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+          μHE[Module.finrank ℝ E] (u n) := setLIntegral_const _ _
+  have hfull : (fun y : F => μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+      (s ∩ f ⁻¹' {y})) =ᵐ[volume] fun y => ∑' n,
+        μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ f ⁻¹' {y}) := by
+    filter_upwards [hremfiber] with y hy
+    have hfibermeas : ∀ n, MeasurableSet (u n ∩ f ⁻¹' {y}) := fun n =>
+      (humeas n).inter ((MeasurableSet.singleton y).preimage hf.continuous.measurable)
+    have hfiberdisj : Pairwise (Disjoint on fun n => u n ∩ f ⁻¹' {y}) :=
+      pairwise_disjoint_mono hudisj fun n => inter_subset_left
+    have hdecomp : s ∩ f ⁻¹' {y} =
+        (⋃ n, u n ∩ f ⁻¹' {y}) ∪ ((s ∩ r) ∩ f ⁻¹' {y}) := by
+      ext x
+      simp only [mem_inter_iff, mem_preimage, mem_singleton_iff, mem_union, mem_iUnion]
+      constructor
+      · intro hx
+        by_cases hxa : x ∈ ⋃ n, a n
+        · left
+          rw [← iUnion_disjointed] at hxa
+          obtain ⟨n, hxt⟩ := mem_iUnion.mp hxa
+          exact ⟨n, ⟨⟨hx.1, hxt⟩, hx.2⟩⟩
+        · exact Or.inr ⟨⟨hx.1, hxa⟩, hx.2⟩
+      · rintro (⟨n, ⟨⟨hxs, _⟩, hfy⟩⟩ | ⟨⟨hxs, _⟩, hfy⟩)
+        · exact ⟨hxs, hfy⟩
+        · exact ⟨hxs, hfy⟩
+    have hremmeas : MeasurableSet ((s ∩ r) ∩ f ⁻¹' {y}) :=
+      (hs.inter (MeasurableSet.iUnion fun n => (haclosed n).measurableSet).compl).inter
+        ((MeasurableSet.singleton y).preimage hf.continuous.measurable)
+    have hdisj : Disjoint (⋃ n, u n ∩ f ⁻¹' {y}) ((s ∩ r) ∩ f ⁻¹' {y}) := by
+      rw [disjoint_left]
+      intro x hx hxr
+      obtain ⟨n, hxn⟩ := mem_iUnion.mp hx
+      exact hxr.1.2 (mem_iUnion.mpr ⟨n, disjointed_subset a n hxn.1.2⟩)
+    rw [hdecomp, measure_union hdisj hremmeas, hy, add_zero,
+      measure_iUnion hfiberdisj hfibermeas]
+  refine ⟨(AEMeasurable.tsum hpiece_meas).congr hfull.symm, ?_⟩
+  calc
+    (∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y})) =
+        ∫⁻ y : F, ∑' n, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ f ⁻¹' {y}) := lintegral_congr_ae hfull
+    _ = ∑' n, ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (u n ∩ f ⁻¹' {y}) := lintegral_tsum hpiece_meas
+    _ ≤ ∑' n, (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+          μHE[Module.finrank ℝ E] (u n) := ENNReal.tsum_le_tsum hpiece
+    _ = (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+          μHE[Module.finrank ℝ E] (⋃ n, u n) := by
+      rw [ENNReal.tsum_mul_left, measure_iUnion hudisj humeas]
+    _ ≤ (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+          μHE[Module.finrank ℝ E] s := by
+      gcongr
+      intro x hx
+      obtain ⟨n, hxn⟩ := mem_iUnion.mp hx
+      exact hxn.1
+
+private theorem lipschitz_coarea_inequality_aux
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : NullMeasurableSet s μHE[Module.finrank ℝ E]) :
+    AEMeasurable (fun y : F => μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y})) volume ∧
+      ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (s ∩ f ⁻¹' {y}) ≤
+        (K : ℝ≥0∞) ^ Module.finrank ℝ F * μHE[Module.finrank ℝ E] s := by
+  obtain ⟨t, hts, ht, hts_ae⟩ := hs.exists_measurable_subset_ae_eq
+  have htresult := lipschitz_coarea_inequality_aux_of_measurableSet hf hEF ht
+  let r : Set E := s \ t
+  have hrzero : μHE[Module.finrank ℝ E] r = 0 := by
+    exact (ae_eq_set.mp hts_ae).2
+  have hrraw : μH[(Module.finrank ℝ E : ℝ)] r = 0 := by
+    have hnormalized := hrzero
+    rw [Measure.euclideanHausdorffMeasure_apply_eq_smul] at hnormalized
+    exact (mul_eq_zero.mp hnormalized).resolve_left <| by
+      exact_mod_cast Measure.addHaarScalarFactor_volume_hausdorffMeasure_ne_zero
+        (Module.finrank ℝ E)
+  have hkpos : 0 < (Module.finrank ℝ E - Module.finrank ℝ F : ℕ) :=
+    Nat.sub_pos_of_lt hEF
+  have hdim : ((Module.finrank ℝ E - Module.finrank ℝ F : ℕ) : ℝ) +
+      Module.finrank ℝ F = Module.finrank ℝ E := by
+    exact_mod_cast Nat.sub_add_cancel hEF.le
+  obtain ⟨q, hqmeas, hqpoint, hqint⟩ :=
+    (hf.lipschitzOnWith (s := r)).exists_measurable_hausdorffMeasure_fiber_majorant
+      (k := ((Module.finrank ℝ E - Module.finrank ℝ F : ℕ) : ℝ))
+      (by exact_mod_cast hkpos) (by rw [hdim, hrraw]; simp)
+  have hqintzero : ∫⁻ y : F, q y ∂μHE[Module.finrank ℝ F] = 0 := by
+    apply le_antisymm
+    · exact hqint.trans (by rw [hdim, hrraw]; simp)
+    · exact bot_le
+  have hqzero : (fun y : F => q y) =ᵐ[volume] 0 := by
+    rw [← InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    exact (lintegral_eq_zero_iff hqmeas).mp hqintzero
+  have hrfiber : ∀ᵐ y : F ∂volume,
+      μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (r ∩ f ⁻¹' {y}) = 0 := by
+    filter_upwards [hqzero] with y hy
+    rw [Measure.euclideanHausdorffMeasure_apply_eq_smul]
+    have hraw : μH[(Module.finrank ℝ E - Module.finrank ℝ F : ℕ)]
+        (r ∩ f ⁻¹' {y}) = 0 := by
+      apply le_antisymm
+      · exact (hqpoint y).trans (by simpa only [Pi.zero_apply] using hy.le)
+      · exact bot_le
+    rw [hraw, mul_zero]
+  have hfull : (fun y : F => μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+      (s ∩ f ⁻¹' {y})) =ᵐ[volume] fun y =>
+        μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (t ∩ f ⁻¹' {y}) := by
+    filter_upwards [hrfiber] with y hy
+    have htmeas : MeasurableSet (t ∩ f ⁻¹' {y}) :=
+      ht.inter ((MeasurableSet.singleton y).preimage hf.continuous.measurable)
+    have hdecomp : s ∩ f ⁻¹' {y} =
+        (t ∩ f ⁻¹' {y}) ∪ (r ∩ f ⁻¹' {y}) := by
+      ext x
+      simp only [r, mem_inter_iff, mem_preimage, mem_singleton_iff, mem_union,
+        mem_sdiff]
+      constructor
+      · intro hx
+        by_cases hxt : x ∈ t
+        · exact Or.inl ⟨hxt, hx.2⟩
+        · exact Or.inr ⟨⟨hx.1, hxt⟩, hx.2⟩
+      · rintro (⟨hxt, hfx⟩ | ⟨⟨hxs, _⟩, hfx⟩)
+        · exact ⟨hts hxt, hfx⟩
+        · exact ⟨hxs, hfx⟩
+    have hdisj : Disjoint (t ∩ f ⁻¹' {y}) (r ∩ f ⁻¹' {y}) := by
+      rw [disjoint_left]
+      intro x hxt hxr
+      exact hxr.1.2 hxt.1
+    rw [hdecomp, measure_union' hdisj htmeas, hy, add_zero]
+  refine ⟨htresult.1.congr hfull.symm, ?_⟩
+  calc
+    (∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y})) =
+        ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+          (t ∩ f ⁻¹' {y}) := lintegral_congr_ae hfull
+    _ ≤ (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        μHE[Module.finrank ℝ E] t := htresult.2
+    _ = (K : ℝ≥0∞) ^ Module.finrank ℝ F *
+        μHE[Module.finrank ℝ E] s := by rw [measure_congr hts_ae]
+
+theorem aemeasurable_lipschitz_coarea_fiber_measure
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : NullMeasurableSet s μHE[Module.finrank ℝ E]) :
+    AEMeasurable (fun y : F => μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+      (s ∩ f ⁻¹' {y})) volume :=
+  (lipschitz_coarea_inequality_aux hf hEF hs).1
+
+theorem lipschitz_coarea_inequality
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : NullMeasurableSet s μHE[Module.finrank ℝ E]) :
+    ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y}) ≤
+      (K : ℝ≥0∞) ^ Module.finrank ℝ F * μHE[Module.finrank ℝ E] s :=
+  (lipschitz_coarea_inequality_aux hf hEF hs).2
+
+theorem lipschitz_coarea_inequality_volume_ratio
+    {f : E → F} {K : ℝ≥0} (hf : LipschitzWith K f)
+    (hEF : Module.finrank ℝ F < Module.finrank ℝ E)
+    {s : Set E} (hs : NullMeasurableSet s μHE[Module.finrank ℝ E]) :
+    ∫⁻ y : F, μHE[Module.finrank ℝ E - Module.finrank ℝ F]
+        (s ∩ f ⁻¹' {y}) ≤
+      (euclideanUnitBallVolume (Module.finrank ℝ F) *
+          euclideanUnitBallVolume (Module.finrank ℝ E - Module.finrank ℝ F) /
+          euclideanUnitBallVolume (Module.finrank ℝ E)) *
+        (K : ℝ≥0∞) ^ Module.finrank ℝ F * μHE[Module.finrank ℝ E] s := by
+  have hdim : Module.finrank ℝ F +
+      (Module.finrank ℝ E - Module.finrank ℝ F) = Module.finrank ℝ E :=
+    Nat.add_sub_of_le hEF.le
+  have hvolume : euclideanUnitBallVolume (Module.finrank ℝ E) ≤
+      euclideanUnitBallVolume (Module.finrank ℝ F) *
+        euclideanUnitBallVolume (Module.finrank ℝ E - Module.finrank ℝ F) := by
+    simpa only [hdim] using euclideanUnitBallVolume_add_le_mul
+      (Module.finrank ℝ F) (Module.finrank ℝ E - Module.finrank ℝ F)
+  have hratio : 1 ≤
+      (euclideanUnitBallVolume (Module.finrank ℝ F) *
+        euclideanUnitBallVolume (Module.finrank ℝ E - Module.finrank ℝ F)) /
+          euclideanUnitBallVolume (Module.finrank ℝ E) :=
+    (ENNReal.le_div_iff_mul_le
+      (Or.inl (euclideanUnitBallVolume_ne_zero (Module.finrank ℝ E)))
+      (Or.inl (euclideanUnitBallVolume_ne_top (Module.finrank ℝ E)))).2 <| by
+        simpa only [one_mul] using hvolume
+  refine (lipschitz_coarea_inequality hf hEF hs).trans ?_
+  have hscale : (K : ℝ≥0∞) ^ Module.finrank ℝ F ≤
+      ((euclideanUnitBallVolume (Module.finrank ℝ F) *
+          euclideanUnitBallVolume (Module.finrank ℝ E - Module.finrank ℝ F)) /
+        euclideanUnitBallVolume (Module.finrank ℝ E)) *
+          (K : ℝ≥0∞) ^ Module.finrank ℝ F := by
+    calc
+      (K : ℝ≥0∞) ^ Module.finrank ℝ F =
+          1 * (K : ℝ≥0∞) ^ Module.finrank ℝ F := (one_mul _).symm
+      _ ≤ _ := mul_left_mono hratio
+  exact mul_left_mono hscale
 
 theorem ae_critical_fiber_measure_eq_zero
     {f : E → F} (hf : ContDiff ℝ 1 f)

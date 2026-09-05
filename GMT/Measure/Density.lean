@@ -1,5 +1,7 @@
 import Mathlib.Geometry.Euclidean.Volume.Measure
+import Mathlib.MeasureTheory.Measure.Haar.InnerProductSpace
 import Mathlib.MeasureTheory.Measure.Lebesgue.VolumeOfBalls
+import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.Order.LiminfLimsup
 import Mathlib.Topology.Semicontinuity.Basic
 
@@ -21,6 +23,45 @@ theorem euclideanUnitBallVolume_ne_zero (n : ℕ) : euclideanUnitBallVolume n �
 theorem euclideanUnitBallVolume_ne_top (n : ℕ) : euclideanUnitBallVolume n ≠ ∞ := by
   rw [euclideanUnitBallVolume, EuclideanSpace.euclideanHausdorffMeasure_eq_volume]
   exact measure_closedBall_lt_top.ne
+
+theorem euclideanUnitBallVolume_add_le_mul (m k : ℕ) :
+    euclideanUnitBallVolume (m + k) ≤
+      euclideanUnitBallVolume m * euclideanUnitBallVolume k := by
+  let U := EuclideanSpace ℝ (Fin m)
+  let V := EuclideanSpace ℝ (Fin k)
+  let e : EuclideanSpace ℝ (Fin (m + k)) ≃ₗᵢ[ℝ] WithLp 2 (U × V) :=
+    (LinearIsometryEquiv.piLpCongrLeft 2 ℝ (E := ℝ) finSumFinEquiv.symm).trans
+      (PiLp.sumPiLpEquivProdLpPiLp 2 (fun _ => ℝ))
+  have heball : e ⁻¹' closedBall (0 : WithLp 2 (U × V)) 1 =
+      closedBall (0 : EuclideanSpace ℝ (Fin (m + k))) 1 := by
+    ext x
+    simp [mem_closedBall, dist_eq_norm]
+  have hsubset : (WithLp.toLp 2) ⁻¹' closedBall (0 : WithLp 2 (U × V)) 1 ⊆
+      closedBall (0 : U) 1 ×ˢ closedBall (0 : V) 1 := by
+    intro x hx
+    have hxnorm : ‖WithLp.toLp 2 x‖ ≤ 1 := by
+      simpa [mem_closedBall, dist_eq_norm] using hx
+    constructor
+    · simpa [mem_closedBall, dist_eq_norm] using
+        (WithLp.norm_fst_le U (WithLp.toLp 2 x)).trans hxnorm
+    · simpa [mem_closedBall, dist_eq_norm] using
+        (WithLp.norm_snd_le U (WithLp.toLp 2 x)).trans hxnorm
+  rw [euclideanUnitBallVolume, euclideanUnitBallVolume,
+    euclideanUnitBallVolume, EuclideanSpace.euclideanHausdorffMeasure_eq_volume,
+    EuclideanSpace.euclideanHausdorffMeasure_eq_volume,
+    EuclideanSpace.euclideanHausdorffMeasure_eq_volume]
+  calc
+    volume (closedBall (0 : EuclideanSpace ℝ (Fin (m + k))) 1) =
+        volume (e ⁻¹' closedBall (0 : WithLp 2 (U × V)) 1) := by rw [heball]
+    _ = volume (closedBall (0 : WithLp 2 (U × V)) 1) :=
+      e.measurePreserving.measure_preimage measurableSet_closedBall.nullMeasurableSet
+    _ = volume ((WithLp.toLp 2) ⁻¹' closedBall (0 : WithLp 2 (U × V)) 1) :=
+      (WithLp.volume_preserving_toLp U V).measure_preimage
+        measurableSet_closedBall.nullMeasurableSet |>.symm
+    _ ≤ volume (closedBall (0 : U) 1 ×ˢ closedBall (0 : V) 1) :=
+      measure_mono hsubset
+    _ = volume (closedBall (0 : U) 1) * volume (closedBall (0 : V) 1) := by
+      rw [Measure.volume_eq_prod, Measure.prod_prod]
 
 private theorem euclideanHausdorffMeasure_unit_closedBall
     {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
