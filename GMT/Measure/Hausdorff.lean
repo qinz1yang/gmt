@@ -276,7 +276,7 @@ private theorem innerProductSpace_volume_le_ediam_pow
       rw [ENNReal.ofReal_toReal hdiam]
 
 private theorem lintegral_openHausdorffContent_fiber_le
-    {E F : Type*} [MetricSpace E] [MeasurableSpace E] [BorelSpace E]
+    {E F : Type*} [MetricSpace E]
     [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
     [MeasurableSpace F] [BorelSpace F]
     {f : E → F} {s : Set E} {K : ℝ≥0} (hf : LipschitzOnWith K f s)
@@ -402,7 +402,7 @@ private theorem lintegral_openHausdorffContent_fiber_le
         simp
 
 private theorem lipschitzOnWith_lintegral_hausdorffMeasure_fiber_le_compact
-    {E F : Type*} [MetricSpace E] [ProperSpace E] [MeasurableSpace E] [BorelSpace E]
+    {E F : Type*} [MetricSpace E] [MeasurableSpace E] [BorelSpace E]
     [NormedAddCommGroup F] [InnerProductSpace ℝ F] [FiniteDimensional ℝ F]
     [MeasurableSpace F] [BorelSpace F]
     {f : E → F} {s : Set E} {K : ℝ≥0} (hf : LipschitzOnWith K f s)
